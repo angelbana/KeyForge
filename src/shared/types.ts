@@ -1,4 +1,5 @@
 export type Algorithm = "ed25519" | "ecdsa" | "rsa" | "ed25519-sk" | "ecdsa-sk";
+export type HardwareState = "unknown" | "absent" | "ready" | "touch";
 export interface KeyInfo {
   name: string;
   path: string;
@@ -63,11 +64,17 @@ export interface Api {
   copyPublic(name: string): Promise<Result<void>>;
   serverCommand(name: string, user: string): Promise<Result<string>>;
   copyServerCommand(name: string, user: string): Promise<Result<string>>;
+  copySnippet(
+    server: Server,
+    shell: "powershell" | "posix",
+  ): Promise<Result<void>>;
   generate(request: GenerateRequest): Promise<Result<void>>;
   chooseTarget(name: string): Promise<Result<string | null>>;
   cancel(): Promise<Result<void>>;
   answerPrompt(id: string, answer: string): Promise<Result<void>>;
   onPrompt(handler: (prompt: Prompt) => void): () => void;
+  hardwareState(): Promise<Result<HardwareState>>;
+  onHardwareState(handler: (state: HardwareState) => void): () => void;
   repairPermissions(name: string): Promise<Result<void>>;
   config(): Promise<Result<ConfigDocument>>;
   saveConfig(text: string, revision: string): Promise<Result<ConfigDocument>>;

@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { IPty } from "node-pty";
-import type { Prompt } from "../shared/types";
+import type { Prompt, HardwareState } from "../shared/types";
+import { requestsHardwareTouch } from "./hardware";
 
 // No raw terminal output leaves this module. Prompts are classified locally.
 export class InteractiveRunner {
@@ -10,7 +11,10 @@ export class InteractiveRunner {
   private cancelled = false;
   private pending:
     { id: string; kind: Prompt["kind"]; terminal: IPty } | undefined;
-  constructor(private notify: (prompt: Prompt) => void) {}
+  constructor(
+    private notify: (prompt: Prompt) => void,
+    private notifyHardware?: (state: HardwareState) => void,
+  ) {}
   answer(id: string, answer: string): void {
     if (
       !this.pending ||
@@ -78,6 +82,9 @@ export class InteractiveRunner {
           "g",
         );
         buffer = (buffer + data.replace(ansi, "")).slice(-4096);
+        if (requestsHardwareTouch(buffer)) {
+          this.notifyHardware?.("touch");
+        }
         if (/overwrite.*\?/i.test(buffer)) {
           terminal.write("n\r");
           buffer = "";

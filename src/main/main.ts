@@ -8,8 +8,11 @@ import { validateName } from "./commands";
 let window: BrowserWindow | undefined;
 const rendererPath = join(__dirname, "../renderer/index.html");
 const rendererUrl = pathToFileURL(rendererPath).href;
-const service = new KeyService((prompt) =>
-  window?.webContents.send("keyforge:prompt", prompt),
+const service = new KeyService(
+  (prompt) => window?.webContents.send("keyforge:prompt", prompt),
+  undefined,
+  undefined,
+  (state) => window?.webContents.send("keyforge:hardwareState", state),
 );
 const selectedPaths = new Set<string>();
 const knownErrors = new Set([
@@ -37,7 +40,7 @@ const knownErrors = new Set([
   "configConflict",
   "copyIdUnavailable",
 ]);
-type CommandName = Exclude<keyof Api, "onPrompt">;
+type CommandName = Exclude<keyof Api, "onPrompt" | "onHardwareState">;
 function handle<K extends CommandName>(
   name: K,
   action: (...args: Parameters<Api[K]>) => unknown,
@@ -71,6 +74,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   handle("scan", () => service.scan());
   handle("capabilities", () => service.capabilities());
+  handle("hardwareState", () => service.hardwareState());
   handle("copyPublic", async (name) =>
     clipboard.writeText(await service.publicText(name)),
   );
@@ -123,6 +127,11 @@ app.whenReady().then(() => {
   handle("validateConfig", (text) => service.validateConfig(text));
   handle("resolveHost", (alias) => service.resolveHost(alias));
   handle("snippets", (server) => service.snippets(server));
+  handle("copySnippet", async (server, shell) => {
+    if (shell !== "powershell" && shell !== "posix")
+      throw new Error("invalidInput");
+    await clipboard.writeText(service.snippets(server)[shell]);
+  });
   handle("deploy", (server) => service.deploy(server));
   const createWindow = () => {
     window = new BrowserWindow({
@@ -132,7 +141,7 @@ app.whenReady().then(() => {
       minHeight: 650,
       title: "KeyForge",
       icon: join(__dirname, "../assets/icon.png"),
-      backgroundColor: "#f5f8fc",
+      backgroundColor: "#0d0e11",
       webPreferences: {
         preload: join(__dirname, "preload.js"),
         contextIsolation: true,

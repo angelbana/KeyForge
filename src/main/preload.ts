@@ -3,6 +3,15 @@ import type { Api, Prompt } from "../shared/types";
 const api: Api = {
   scan: () => ipcRenderer.invoke("keyforge:scan"),
   capabilities: () => ipcRenderer.invoke("keyforge:capabilities"),
+  hardwareState: () => ipcRenderer.invoke("keyforge:hardwareState"),
+  onHardwareState: (handler) => {
+    const listener = (
+      _event: unknown,
+      state: import("../shared/types").HardwareState,
+    ) => handler(state);
+    ipcRenderer.on("keyforge:hardwareState", listener);
+    return () => ipcRenderer.removeListener("keyforge:hardwareState", listener);
+  },
   copyPublic: (name) => ipcRenderer.invoke("keyforge:copyPublic", name),
   serverCommand: (name, user) =>
     ipcRenderer.invoke("keyforge:serverCommand", name, user),
@@ -28,6 +37,8 @@ const api: Api = {
   validateConfig: (text) => ipcRenderer.invoke("keyforge:validateConfig", text),
   resolveHost: (alias) => ipcRenderer.invoke("keyforge:resolveHost", alias),
   snippets: (server) => ipcRenderer.invoke("keyforge:snippets", server),
+  copySnippet: (server, shell) =>
+    ipcRenderer.invoke("keyforge:copySnippet", server, shell),
   deploy: (server) => ipcRenderer.invoke("keyforge:deploy", server),
 };
 contextBridge.exposeInMainWorld("keyforge", api);

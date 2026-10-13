@@ -1,5 +1,5 @@
 import { configHostBlock } from "../shared/config";
-import React, { Component, useEffect, useState } from "react";
+import React, { Component, useEffect, useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import type {
   Algorithm,
@@ -11,9 +11,16 @@ import type {
   Prompt,
   Result,
   Server,
+  HardwareState,
 } from "../shared/types";
 import { en, ru, type Language, type TextKey } from "./i18n";
 import "./style.css";
+import { themes, readTheme, applyTheme, type Theme } from "./design";
+import {
+  FingerprintBadge,
+  StrengthIndicator,
+  HardwareIndicator,
+} from "./components";
 declare global {
   interface Window {
     keyforge?: Api;
@@ -77,6 +84,16 @@ class ErrorBoundary extends Component<
   }
 }
 function App() {
+  const [theme, setTheme] = useState<Theme>(readTheme);
+  const [hardwareState, setHardwareState] = useState<HardwareState>("unknown");
+  const hardwareBaseline = useRef<HardwareState>("unknown");
+  const [copiedAction, setCopiedAction] = useState<string | null>(null);
+  useEffect(() => applyTheme(theme), [theme]);
+  useEffect(() => {
+    if (!copiedAction) return;
+    const timer = setTimeout(() => setCopiedAction(null), 1800);
+    return () => clearTimeout(timer);
+  }, [copiedAction]);
   const [lang, setLang] = useState<Language>(() => {
     try {
       return localStorage.getItem("keyforge.language") === "en" ? "en" : "ru";
@@ -134,6 +151,7 @@ function App() {
     if (!api) return;
     const value = await unwrap(api.scan());
     setInstallCommand("");
+    setSnippets(undefined);
     setScan(value);
     setSelected((old) =>
       value.keys.some((key) => key.name === old)
@@ -163,6 +181,7 @@ function App() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "operationFailed");
     } finally {
+      setHardwareState(hardwareBaseline.current);
       setBusy(false);
       setPrompt(undefined);
       setAnswer("");
@@ -175,13 +194,61 @@ function App() {
         refresh(),
         loadConfig(),
         unwrap(api.capabilities()).then(setCaps),
+        refreshHardware(),
       ]);
     });
-    return api.onPrompt((value) => {
+    const stopPrompt = api.onPrompt((value) => {
       setAnswer("");
       setPrompt(value);
     });
+    const stopHardware = api.onHardwareState(setHardwareState);
+    return () => {
+      stopPrompt();
+      stopHardware();
+    };
   }, []);
+  async function refreshHardware() {
+    if (!api) return;
+    const state = await unwrap(api.hardwareState());
+    hardwareBaseline.current = state;
+    setHardwareState(state);
+  }
+  async function copyPublic(name: string) {
+    await unwrap(api!.copyPublic(name));
+    setCopiedAction(`public:${name}`);
+  }
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (prompt) return;
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      if (event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setTab("explorer");
+        requestAnimationFrame(() =>
+          (
+            document.querySelector(".key-item.selected") as HTMLElement | null
+          )?.focus(),
+        );
+      } else if (
+        event.key.toLowerCase() === "c" &&
+        tab === "explorer" &&
+        selected &&
+        !busy
+      ) {
+        const target = event.target as HTMLElement;
+        if (
+          target.isContentEditable ||
+          /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) ||
+          window.getSelection()?.toString()
+        )
+          return;
+        event.preventDefault();
+        void act(() => copyPublic(selected));
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => document.removeEventListener("keydown", listener);
+  }, [tab, selected, busy, prompt]);
   const key = scan.keys.find((value) => value.name === selected);
   const strength: TextKey = !request.passphrase.length
     ? "none"
@@ -195,6 +262,45 @@ function App() {
     value: GenerateRequest[K],
   ) => setRequest((old) => ({ ...old, [field]: value }));
   const hardware = request.algorithm.endsWith("-sk");
+  useEffect(() => {
+    if (
+      !api ||
+      busy ||
+      (tab !== "hardware" && !(tab === "generate" && hardware)) ||
+      hardwareBaseline.current === "unknown"
+    )
+      return;
+    let disposed = false,
+      probing = false;
+    const timer = setInterval(async () => {
+      if (probing) return;
+      probing = true;
+      try {
+        const result = await api.hardwareState();
+        if (!disposed && result.ok) {
+          hardwareBaseline.current = result.value;
+          setHardwareState(result.value);
+        }
+      } finally {
+        probing = false;
+      }
+    }, 5000);
+    return () => {
+      disposed = true;
+      clearInterval(timer);
+    };
+  }, [tab, busy, hardware]);
+  const hardwareLabel = t(
+    (
+      {
+        unknown: "hardwareUnknown",
+        absent: "hardwareAbsent",
+        ready: "hardwareReady",
+        touch: "hardwareTouch",
+      } as const
+    )[hardwareState],
+  );
+  const shortcut = caps?.platform === "darwin" ? "⌘" : "Ctrl+";
   const errorText = error in en ? t(error as TextKey) : t("operationFailed");
   function chooseAlgorithm(algorithm: Algorithm) {
     setRequest((old) => ({
@@ -241,6 +347,7 @@ function App() {
               >
                 <Icon type={value} />
                 {t(value)}
+                {value === "explorer" && <kbd>{shortcut}K</kbd>}
               </button>
             ),
           )}
@@ -260,7 +367,20 @@ function App() {
               <option value="en">English</option>
             </select>
           </label>
-          <small>KeyForge 0.1.1</small>
+          <label className="theme-control">
+            {t("theme")}
+            <select
+              value={theme}
+              onChange={(event) => setTheme(event.target.value as Theme)}
+            >
+              {themes.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <small>KeyForge 0.1.2</small>
         </div>
       </aside>
       <main>
@@ -271,7 +391,15 @@ function App() {
             </span>
             <h1>{t(tab)}</h1>
           </div>
-          <button disabled={busy || !api} onClick={() => void act(refresh)}>
+          <button
+            disabled={busy || !api}
+            onClick={() =>
+              void act(async () => {
+                await refresh();
+                await refreshHardware();
+              })
+            }
+          >
             {t("refresh")}
           </button>
         </header>
@@ -326,28 +454,65 @@ function App() {
               {scan.keys.length ? (
                 <div className="explorer-grid">
                   <section className="key-list" aria-label={t("keys")}>
-                    {scan.keys.map((item) => (
-                      <button
-                        className={
-                          item.name === selected
-                            ? "key-item selected"
-                            : "key-item"
-                        }
-                        key={item.name}
-                        disabled={busy}
-                        onClick={() => {
-                          setSelected(item.name);
-                          setInstallCommand("");
-                        }}
-                      >
-                        <span className="key-symbol">⌘</span>
-                        <span>
-                          <strong>{item.name}</strong>
-                          <small>{item.comment || item.type}</small>
-                        </span>
-                        <span className="key-badge">{item.bits}</span>
-                      </button>
-                    ))}
+                    <table className="key-table">
+                      <thead>
+                        <tr>
+                          <th>{t("name")}</th>
+                          <th>{t("algorithm")}</th>
+                          <th>{t("bits")}</th>
+                          <th>{t("protection")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scan.keys.map((item) => (
+                          <tr
+                            key={item.name}
+                            data-selected={item.name === selected}
+                          >
+                            <td>
+                              <button
+                                className={
+                                  item.name === selected
+                                    ? "key-item selected"
+                                    : "key-item"
+                                }
+                                disabled={busy}
+                                onClick={() => {
+                                  setSelected(item.name);
+                                  setInstallCommand("");
+                                  setCopiedAction(null);
+                                }}
+                              >
+                                <strong>{item.name}</strong>
+                                <small>{item.comment || "—"}</small>
+                              </button>
+                            </td>
+                            <td>
+                              <code>
+                                {item.type.includes("ed25519")
+                                  ? "Ed25519"
+                                  : item.type.includes("ecdsa")
+                                    ? "ECDSA"
+                                    : "RSA"}
+                                {item.type.startsWith("sk-") ? "-sk" : ""}
+                              </code>
+                            </td>
+                            <td>
+                              <code>{item.bits}</code>
+                            </td>
+                            <td>
+                              {t(
+                                !item.privatePresent || item.encrypted === null
+                                  ? "unknown"
+                                  : item.encrypted
+                                    ? "encrypted"
+                                    : "unencrypted",
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </section>
                   {key && (
                     <section className="key-detail">
@@ -394,21 +559,29 @@ function App() {
                         ].map(([label, value]) => (
                           <div key={label}>
                             <dt>{label}</dt>
-                            <dd>{value}</dd>
+                            <dd>
+                              {label === t("fingerprint") ? (
+                                <FingerprintBadge value={value} />
+                              ) : (
+                                value
+                              )}
+                            </dd>
                           </div>
                         ))}
                       </dl>
                       <button
                         className="primary"
+                        data-copied={copiedAction === `public:${key.name}`}
+                        aria-live="polite"
                         disabled={busy || !api}
-                        onClick={() =>
-                          void act(
-                            () => unwrap(api!.copyPublic(key.name)),
-                            "copied",
-                          )
-                        }
+                        onClick={() => void act(() => copyPublic(key.name))}
                       >
-                        {t("copy")}
+                        {t(
+                          copiedAction === `public:${key.name}`
+                            ? "copiedInline"
+                            : "copy",
+                        )}
+                        <kbd>{shortcut}C</kbd>
                       </button>
                       <button
                         disabled={busy || !api}
@@ -454,23 +627,27 @@ function App() {
                               <pre>{installCommand}</pre>
                               <button
                                 className="copy-server-command primary"
+                                data-copied={copiedAction === "server"}
                                 disabled={busy || !api}
                                 onClick={() =>
-                                  void act(
-                                    async () =>
-                                      setInstallCommand(
-                                        await unwrap(
-                                          api!.copyServerCommand(
-                                            key.name,
-                                            installUser,
-                                          ),
+                                  void act(async () => {
+                                    setInstallCommand(
+                                      await unwrap(
+                                        api!.copyServerCommand(
+                                          key.name,
+                                          installUser,
                                         ),
                                       ),
-                                    "commandCopied",
-                                  )
+                                    );
+                                    setCopiedAction("server");
+                                  })
                                 }
                               >
-                                {t("copyCommand")}
+                                {t(
+                                  copiedAction === "server"
+                                    ? "copiedInline"
+                                    : "copyCommand",
+                                )}
                               </button>
                             </>
                           )}
@@ -624,9 +801,10 @@ function App() {
                         }
                       />
                       <span className="password-tools">
-                        <span className={`strength ${strength}`}>
-                          {t(strength)}
-                        </span>
+                        <StrengthIndicator
+                          value={request.passphrase}
+                          label={t(strength)}
+                        />
                         <button
                           type="button"
                           onClick={() => {
@@ -686,6 +864,10 @@ function App() {
                   )}
                   {hardware && (
                     <div className="hardware-options">
+                      <HardwareIndicator
+                        state={hardwareState}
+                        label={hardwareLabel}
+                      />
                       <label className="checkbox">
                         <input
                           type="checkbox"
@@ -731,14 +913,12 @@ function App() {
                 <p>{t("hardwareHint")}</p>
               </div>
               <div className="hardware-panel">
-                <div className="token-illustration" aria-hidden="true">
-                  <div className="token-usb" />
-                  <div className="token-body">
-                    <span />
-                    <b>FIDO2</b>
-                  </div>
-                </div>
                 <div>
+                  <HardwareIndicator
+                    state={hardwareState}
+                    label={hardwareLabel}
+                  />
+                  <p className="muted">{t("hardwareDetectionHint")}</p>
                   <h3>{t("capability")}</h3>
                   <dl className="capabilities">
                     <div>
@@ -897,14 +1077,25 @@ function App() {
                             {shell === "powershell" ? "PowerShell" : "POSIX"}
                           </strong>
                           <button
+                            data-copied={copiedAction === "shell:" + shell}
+                            disabled={busy || !api}
                             onClick={() =>
-                              void act(
-                                () => navigator.clipboard.writeText(command),
-                                "commandCopied",
-                              )
+                              void act(async () => {
+                                await unwrap(
+                                  api!.copySnippet(
+                                    server,
+                                    shell as "powershell" | "posix",
+                                  ),
+                                );
+                                setCopiedAction("shell:" + shell);
+                              })
                             }
                           >
-                            {t("copyCommand")}
+                            {t(
+                              copiedAction === "shell:" + shell
+                                ? "copiedInline"
+                                : "copyCommand",
+                            )}
                           </button>
                         </div>
                         <pre>{command}</pre>

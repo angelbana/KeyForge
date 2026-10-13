@@ -101,6 +101,7 @@ app
     const actions = {
       scan: () => service.scan(),
       capabilities: () => service.capabilities(),
+      hardwareState: () => service.hardwareState(),
       config: () => service.config(),
       copyPublic: async (name) =>
         clipboard.writeText(await service.publicText(name)),
@@ -111,6 +112,8 @@ app
         return command;
       },
       snippets: (server) => service.snippets(server),
+      copySnippet: async (server, shell) =>
+        clipboard.writeText(service.snippets(server)[shell]),
       validateConfig: (text) => service.validateConfig(text),
       saveConfig: (text, revision) => service.saveConfig(text, revision),
       resolveHost: (alias) => service.resolveHost(alias),
@@ -171,7 +174,7 @@ app
     );
     stage = "preload and clipboard";
     assert.equal(await evaluate("typeof window.require"), "undefined");
-    assert.equal(await evaluate("Object.keys(window.keyforge).length"), 17);
+    assert.equal(await evaluate("Object.keys(window.keyforge).length"), 20);
     assert.equal(
       await evaluate("document.querySelector('.key-detail .primary').disabled"),
       false,
@@ -179,6 +182,16 @@ app
     await clipboard.clear();
     await evaluate("document.querySelector('.key-detail .primary').click()");
     await new Promise((resolve) => setTimeout(resolve, 1000));
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.key-detail .primary').dataset.copied",
+      ),
+      "true",
+    );
+    assert.equal(
+      await evaluate("document.querySelectorAll('.alert.success').length"),
+      0,
+    );
     assert.match(await clipboard.readText(), /^(ssh-|ecdsa-|sk-)/);
     await clipboard.clear();
     await fs.mkdir(reportDirectory, { recursive: true });
@@ -207,6 +220,87 @@ app
     checks.push(
       "server-side command prepared and copied through the real UI and clipboard",
     );
+    stage = "design themes";
+    assert.equal(
+      await evaluate("document.documentElement.dataset.theme"),
+      "obsidian",
+    );
+    assert.equal(
+      await evaluate("document.querySelectorAll('.key-table tbody tr').length"),
+      4,
+    );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.fingerprint-badge').textContent.replace(/\\s/g,'')",
+      ),
+      (await service.scan()).keys[0].fingerprint,
+    );
+    for (const [id, background] of [
+      ["obsidian", "#0d0e11"],
+      ["tokyo", "#1a1b26"],
+      ["paper", "#f6f8fa"],
+      ["solarized", "#002b36"],
+    ]) {
+      await evaluate(
+        `document.querySelector('.theme-control select').value = '${id}'; document.querySelector('.theme-control select').dispatchEvent(new Event('change', {bubbles:true}))`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      assert.equal(
+        await evaluate("document.documentElement.dataset.theme"),
+        id,
+      );
+      assert.equal(
+        await evaluate(
+          "getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim()",
+        ),
+        background,
+      );
+      await fs.writeFile(
+        path.join(reportDirectory, `theme-${id}.png`),
+        (await window.webContents.capturePage()).toPNG(),
+      );
+    }
+    window.webContents.reload();
+    await new Promise((resolve) =>
+      window.webContents.once("did-finish-load", resolve),
+    );
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if (
+        await evaluate(
+          "!!document.querySelector('.key-detail .primary') && !document.querySelector('.key-detail .primary').disabled",
+        )
+      )
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.equal(
+      await evaluate("document.documentElement.dataset.theme"),
+      "solarized",
+    );
+    await evaluate(
+      "document.querySelector('.theme-control select').value = 'obsidian'; document.querySelector('.theme-control select').dispatchEvent(new Event('change', {bubbles:true}))",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate(
+      "document.dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true}))",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(
+      await evaluate("document.activeElement.classList.contains('key-item')"),
+      true,
+    );
+    await evaluate(
+      "document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'c',ctrlKey:true,bubbles:true}))",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(
+      await clipboard.readText(),
+      await service.publicText("test-ecdsa"),
+    );
+    await clipboard.clear();
+    checks.push(
+      "four exact theme palettes, persisted selection after reload, compact key table, paired fingerprint, inline copy and Ctrl+K/C shortcuts",
+    );
     await fs.writeFile(
       path.join(reportDirectory, "keyforge-ru.png"),
       (await window.webContents.capturePage()).toPNG(),
@@ -232,6 +326,58 @@ app
         0,
       );
     }
+    await evaluate("document.querySelectorAll('nav button')[1].click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    stage = "strength and hardware indicators";
+    assert.equal(
+      await evaluate(
+        "document.querySelectorAll('.strength-segments > span').length",
+      ),
+      4,
+    );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('[role=meter]').getAttribute('aria-valuenow')",
+      ),
+      "0",
+    );
+    await evaluate("document.querySelector('.password-tools button').click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(
+      await evaluate(
+        "document.querySelector('[role=meter]').getAttribute('aria-valuenow')",
+      ),
+      "4",
+    );
+    // Verify event rendering using explicit simulated states; this is not a live token check.
+    await evaluate("document.querySelectorAll('nav button')[2].click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    for (const state of ["ready", "touch", "absent", "unknown"]) {
+      window.webContents.send("keyforge:hardwareState", state);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(
+        await evaluate(
+          "document.querySelector('.hardware-state').dataset.state",
+        ),
+        state,
+      );
+      if (state === "touch")
+        assert.equal(
+          await evaluate(
+            "getComputedStyle(document.querySelector('.hardware-led')).animationName",
+          ),
+          await evaluate(
+            "matchMedia('(prefers-reduced-motion: reduce)').matches ? 'none' : 'touch-led'",
+          ),
+        );
+    }
+    await fs.writeFile(
+      path.join(reportDirectory, "hardware-state.png"),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    checks.push(
+      "four-segment passphrase meter; simulated hardware events and reduced-motion-aware touch LED (no physical token verified)",
+    );
     await evaluate("document.querySelectorAll('nav button')[1].click()");
     await new Promise((resolve) => setTimeout(resolve, 100));
     await fs.writeFile(

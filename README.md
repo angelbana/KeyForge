@@ -2,6 +2,10 @@
 
 Локальное десктопное приложение для SSH-ключей и конфигурации. Electron, React, TypeScript и Tailwind CSS. Интерфейс на русском и английском; язык переключается в боковой панели и сохраняется локально.
 
+Темы переключаются в боковой панели и сохраняются локально: Obsidian Monolith (по умолчанию), Tokyo Night Terminal, Paper & Ink, Solarized Machining. Компактная таблица и инспектор используют CSS-переменные, системный UI-шрифт и моноширинный шрифт для технических значений. SHA256 отображается парами символов исходного base64 без изменения отпечатка. Ctrl/Command+K открывает обзор и переводит фокус на выбранный ключ; Ctrl/Command+C копирует его публичный ключ, если фокус не в поле ввода и текст не выделен. Отметка копирования появляется на кнопке на 1,8 секунды.
+
+Индикатор парольной фразы состоит из четырёх сегментов и оценивает длину, а не гарантирует криптографическую стойкость. Индикация FIDO2 использует необязательную утилиту `fido2-token -L` из libfido2: серый — устройство отсутствует или обнаружение недоступно (разные подписи), зелёный — найден физический токен. Windows Hello не считается USB-токеном. Мигающий янтарный означает запрос касания в выводе OpenSSH; при настройке ОС «уменьшить движение» он не мигает. Обновление обнаружения выполняется вручную и раз в пять секунд в аппаратной вкладке/мастере, когда утилита доступна и операция не выполняется. Обнаружение токена не заменяет проверку регистрации и подписи с реальным устройством.
+
 ## Возможности
 
 - Обзор `.pub` в стандартном каталоге SSH: алгоритм, размер, комментарий, SHA256 fingerprint, дата изменения, наличие приватного файла и его шифрования.
@@ -9,7 +13,7 @@
 - Генерация через OpenSSH: Ed25519, ECDSA 256/384/521, RSA 3072/4096, ed25519-sk и ecdsa-sk. RSA 2048 не создаётся.
 - Парольная фраза с ориентировочной оценкой длины и криптографическим генератором. Передача через псевдотерминал, без секретов в аргументах процесса. Пустая фраза требует явного согласия в интерфейсе.
 - Выбор другого пути через системный диалог. Нельзя перезаписать существующую пару; ключи из других каталогов не входят в стандартный обзор.
-- Для FIDO2: `resident`, `verify-required`, запрос PIN, ожидание касания, отмена и тайм-аут. Приложение определяет поддержку алгоритмов OpenSSH, а не подключение устройства.
+- Для FIDO2: `resident`, `verify-required`, запрос PIN, ожидание касания, отмена и тайм-аут. Поддержка алгоритмов OpenSSH проверяется отдельно от обнаружения физического устройства через libfido2.
 - Команды установки публичного ключа для PowerShell/POSIX; интерактивный `ssh-copy-id` на Linux/macOS, если он установлен.
 - Кнопка «Команда для сервера» в карточке ключа: подготовка и копирование команды для вставки прямо в терминал сервера. Пустое имя пользователя означает текущую учётную запись; другое имя использует `sudo -u … -H` и требует установленного sudo и соответствующих прав. Ключ не дублируется, существующие ограничения в authorized_keys сохраняются.
 - Редактор SSH config с визуальным добавлением Host, сохранением исходного текста, резервной копией, проверкой конфликтов и `ssh -G`.
@@ -59,6 +63,8 @@ GitHub CI проверяет три ОС и создаёт локальные п
 
 KeyForge is a local SSH key manager with Russian and English UI. It uses Electron, React, strict TypeScript and Tailwind CSS. Native OpenSSH creates encrypted software keys and FIDO2 credentials; private material never enters the renderer or clipboard.
 
+Four persisted themes are available: Obsidian Monolith (default), Tokyo Night Terminal, Paper & Ink, and Solarized Machining. Technical data uses monospace typography, SHA256 fingerprints retain their original base64 while being grouped in pairs, and copy actions confirm inline. Ctrl/Command+K focuses the selected key; Ctrl/Command+C copies its public key when no editable field or text selection owns the shortcut. The four-segment passphrase meter estimates length only. Optional libfido2 enumeration distinguishes physical tokens from Windows Hello; unavailable detection is shown explicitly. Amber touch indication follows OpenSSH output and respects reduced motion. Physical enrollment and signing still require separate verification.
+
 Install Node.js 24 and OpenSSH, run `npm ci`, then `npm run dev`. `npm run check` runs lint, parser/service tests, type checks and the frontend build. `npm run smoke` exercises real Electron and OpenSSH in a temporary SSH directory. `npm run pack` places the current unpacked app directly in the sibling build/ folder; `npm run dist` creates platform packages. Build on each target operating system. Linux may need native build tools for node-pty. No cloud service, telemetry or account is required.
 
 The explorer scans the default SSH directory, displays public metadata and copies only public keys. Generation supports Ed25519, NIST ECDSA, RSA 3072/4096 and security key algorithms, with passphrase/PIN prompts through a PTY. Custom save paths require the native file dialog. Existing files cannot be replaced. Unix permissions and Windows ACLs are restricted to the current user; custom destination directories are restricted too. Windows ACL auditing is displayed as unknown.
@@ -67,7 +73,7 @@ Deployment provides PowerShell/POSIX commands and optional ssh-copy-id on Unix. 
 
 The key detail panel also offers a “Command for the server” button. Paste the copied command into a Linux/macOS server terminal. Leave the account empty to install for the current account; a specified account uses sudo and requires appropriate privileges. Duplicate detection ignores comments and preserves restrictions on existing authorized_keys entries. Only the public key is embedded.
 
-Hardware support detection means OpenSSH algorithm support, not device discovery. Real FIDO2 enrollment, server deployment, Linux/macOS packages and PAM/TOTP require separate verification. The 2FA checklist must be adapted to the server's existing PAM stack and tested with recovery access. Secrets are transient; JavaScript cannot guarantee erasure of immutable strings from RAM. Cancellation may leave a resident credential on the token. Manual deployment can append duplicates. This version does not support private-key export, SSH certificates or agent/resident-credential management.
+OpenSSH algorithm support is separate from optional physical device discovery through libfido2. Real FIDO2 enrollment, server deployment, Linux/macOS packages and PAM/TOTP require separate verification. The 2FA checklist must be adapted to the server's existing PAM stack and tested with recovery access. Secrets are transient; JavaScript cannot guarantee erasure of immutable strings from RAM. Cancellation may leave a resident credential on the token. Manual deployment can append duplicates. This version does not support private-key export, SSH certificates or agent/resident-credential management.
 
 ## References
 

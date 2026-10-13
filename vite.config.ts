@@ -6,6 +6,6 @@ export default defineConfig({
   base: "./",
   build: {
     outDir: "../verification/build-work/compiled/renderer",
-    emptyOutDir: false,
+    emptyOutDir: true,
   },
 });

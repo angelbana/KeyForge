@@ -1,4 +1,13 @@
 export const en = {
+  theme: "Theme",
+  copiedInline: "[COPIED]",
+  hardwareUnknown: "Device detection unavailable",
+  hardwareAbsent: "No device detected",
+  hardwareReady: "Connected and ready",
+  hardwareTouch: "OpenSSH requests a physical touch",
+  hardwareDetectionHint:
+    "Device detection uses libfido2's optional fido2-token utility. Install it and refresh to detect connected USB tokens. OpenSSH algorithm support alone does not establish that a token is connected.",
+  protection: "Protection",
   installOnServer: "Command for the server",
   serverUser: "Server account (empty = current user)",
   serverCommandHint:
@@ -14,14 +23,14 @@ export const en = {
   hardware: "Hardware & 2FA",
   servers: "Servers & config",
   local: "Local SSH workspace",
-  tagline: "Your keys. Your machines.",
+  tagline: "SSH key management",
   refresh: "Refresh",
   language: "Language",
   keys: "Public keys",
   protected: "Encrypted pairs",
   hardwareKeys: "Hardware keys",
   directory: "SSH directory",
-  empty: "Your key collection starts here",
+  empty: "No public keys found",
   emptyHint:
     "Create an Ed25519 key, or place a public key in your SSH directory and refresh.",
   name: "File name",
@@ -46,7 +55,7 @@ export const en = {
   modified: "Modified",
   warnings:
     "Some files could not be read. Check formats, links and permissions.",
-  createTitle: "Forge a new identity",
+  createTitle: "Create an SSH key",
   createHint:
     "OpenSSH creates and encrypts your key locally. Existing files are never overwritten.",
   ed25519:
@@ -70,11 +79,11 @@ export const en = {
   verifyRequired: "Require PIN / user verification",
   create: "Create key",
   created: "Key created",
-  busy: "OpenSSH is working. Hardware operations may require a touch.",
+  busy: "Operation in progress.",
   cancel: "Cancel operation",
   locationHint:
     "Use a simple file name. Keys are saved to your SSH directory unless you select another destination.",
-  hardwareTitle: "Put the secret in your hands",
+  hardwareTitle: "Hardware FIDO2 keys",
   hardwareHint:
     "Security key credentials need your physical authenticator to sign.",
   capability: "OpenSSH capabilities",
@@ -96,7 +105,7 @@ export const en = {
     "Check syntax, reload SSH and test in a second session before closing the first",
   totpWarning:
     "The existing PAM stack may also require an account password. Verify the complete authentication flow and recovery access before enforcing 2FA.",
-  serverTitle: "Connect your identity to a server",
+  serverTitle: "Install a public key on a server",
   serverHint:
     "Generate a command to install only the public key, or use ssh-copy-id on Linux and macOS.",
   host: "Host / IP",
@@ -174,6 +183,15 @@ export const en = {
   unauthorized: "This request did not originate from the application window.",
 };
 export const ru: Record<keyof typeof en, string> = {
+  theme: "Тема",
+  copiedInline: "[СКОПИРОВАНО]",
+  hardwareUnknown: "Обнаружение устройства недоступно",
+  hardwareAbsent: "Устройство не обнаружено",
+  hardwareReady: "Подключён и готов",
+  hardwareTouch: "OpenSSH ожидает физического касания",
+  hardwareDetectionHint:
+    "Обнаружение использует необязательную утилиту fido2-token из libfido2. Установите её и обновите данные для поиска USB-токенов. Поддержка алгоритмов OpenSSH сама по себе не подтверждает подключение токена.",
+  protection: "Защита",
   installOnServer: "Команда для сервера",
   serverUser: "Пользователь сервера (пусто = текущий)",
   serverCommandHint:
@@ -189,14 +207,14 @@ export const ru: Record<keyof typeof en, string> = {
   hardware: "Токены и 2FA",
   servers: "Серверы и конфиг",
   local: "Локальная среда SSH",
-  tagline: "Ваши ключи. Ваши машины.",
+  tagline: "Управление SSH-ключами",
   refresh: "Обновить",
   language: "Язык",
   keys: "Публичные ключи",
   protected: "Зашифрованные пары",
   hardwareKeys: "Аппаратные ключи",
   directory: "Каталог SSH",
-  empty: "Здесь начнётся коллекция ключей",
+  empty: "Публичных ключей пока нет",
   emptyHint:
     "Создайте ключ Ed25519 или поместите публичный ключ в каталог SSH и обновите список.",
   name: "Имя файла",
@@ -221,7 +239,7 @@ export const ru: Record<keyof typeof en, string> = {
   modified: "Изменён",
   warnings:
     "Некоторые файлы не удалось прочитать. Проверьте формат, ссылки и права доступа.",
-  createTitle: "Создайте новый ключ",
+  createTitle: "Создание SSH-ключа",
   createHint:
     "OpenSSH создаёт и шифрует ключ локально. Существующие файлы не перезаписываются.",
   ed25519:
@@ -246,11 +264,11 @@ export const ru: Record<keyof typeof en, string> = {
   verifyRequired: "Требовать PIN / проверку пользователя",
   create: "Создать ключ",
   created: "Ключ создан",
-  busy: "OpenSSH выполняет операцию. Для токена может потребоваться касание.",
+  busy: "Выполняется операция.",
   cancel: "Отменить операцию",
   locationHint:
     "Используйте простое имя файла. По умолчанию ключ сохраняется в стандартном каталоге SSH.",
-  hardwareTitle: "Секрет в ваших руках",
+  hardwareTitle: "Аппаратные ключи FIDO2",
   hardwareHint: "Для подписи аппаратным SSH-ключом нужен физический токен.",
   capability: "Возможности OpenSSH",
   available: "Доступно",
@@ -270,7 +288,7 @@ export const ru: Record<keyof typeof en, string> = {
     "Проверьте синтаксис, перечитайте конфиг SSH и испытайте вход в другой сессии",
   totpWarning:
     "Существующий стек PAM может также требовать пароль учётной записи. Проверьте полный сценарий входа и восстановление доступа до включения обязательной 2FA.",
-  serverTitle: "Привяжите ключ к серверу",
+  serverTitle: "Установка ключа на сервер",
   serverHint:
     "Подготовьте команду установки только публичного ключа или используйте ssh-copy-id в Linux и macOS.",
   host: "Хост / IP",

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Added Obsidian Monolith (default), Tokyo Night Terminal, Paper & Ink and Solarized Machining themes with a saved selection.
+- Reworked the interface into a compact key table and inspector with functional borders, system UI typography and monospace metadata.
+- Added paired SHA256 fingerprint display, a four-segment passphrase indicator, inline copy confirmation and Ctrl/Command+C/K shortcuts.
+- Added optional libfido2 device enumeration and an OpenSSH touch-request indicator, with an explicit unknown status when detection is unavailable.
+
 ## 0.1.1
 
 - Added a key explorer button to prepare and copy a command for installation directly on a server.

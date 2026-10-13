@@ -12,6 +12,7 @@ import {
 } from "./commands";
 import { parseConfig, parsePublicKey, privateEncryption } from "./parsers";
 import { InteractiveRunner } from "./interactive";
+import { hardwareStateFromInventory } from "./hardware";
 import type {
   Capabilities,
   ConfigDocument,
@@ -19,6 +20,7 @@ import type {
   KeyScan,
   Prompt,
   Server,
+  HardwareState,
 } from "../shared/types";
 
 export async function run(
@@ -77,6 +79,15 @@ async function restrictWindows(
   ]);
 }
 export class KeyService {
+  async hardwareState(): Promise<HardwareState> {
+    try {
+      const output = await run("fido2-token", ["-L"], 5000);
+      // Require an actual vendor/product device entry; Windows Hello alone is not a token.
+      return hardwareStateFromInventory(output);
+    } catch {
+      return "unknown";
+    }
+  }
   async serverCommand(name: string, user: string): Promise<string> {
     return serverInstallCommand(await this.publicText(name), user);
   }
@@ -88,9 +99,11 @@ export class KeyService {
     notify: (prompt: Prompt) => void,
     directory = join(homedir(), ".ssh"),
     interactive?: InteractiveRunner,
+    notifyHardware?: (state: HardwareState) => void,
   ) {
     this.directory = resolve(directory);
-    this.interactive = interactive || new InteractiveRunner(notify);
+    this.interactive =
+      interactive || new InteractiveRunner(notify, notifyHardware);
   }
   private async ensureDirectory(): Promise<void> {
     await fs.mkdir(this.directory, { recursive: true, mode: 0o700 });
