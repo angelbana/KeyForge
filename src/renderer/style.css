@@ -145,7 +145,7 @@ dd {
 }
 .app-shell {
   display: grid;
-  grid-template-columns: 208px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
   min-height: 100vh;
 }
 .sidebar {
@@ -154,7 +154,7 @@ dd {
   height: 100vh;
   border-right: 1px solid var(--border-subtle);
   background: var(--bg-surface);
-  padding: 20px 12px;
+  padding: 20px 16px;
   display: flex;
   flex-direction: column;
 }
@@ -187,29 +187,34 @@ dd {
 }
 .sidebar nav {
   display: grid;
-  gap: 3px;
+  gap: 7px;
 }
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   border-color: transparent;
+  border-radius: 6px;
   background: transparent;
-  padding: 9px 8px;
+  padding: 12px 10px;
   text-align: left;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
 }
+.nav-item:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-surface));
+}
 .nav-item svg {
-  width: 17px;
-  height: 17px;
+  width: 19px;
+  height: 19px;
   flex-shrink: 0;
 }
 .nav-item.active {
-  border-color: var(--border-subtle);
-  border-left-color: var(--accent);
-  color: var(--text-primary);
-  background: var(--bg-active);
+  border-color: transparent;
+  box-shadow: inset 3px 0 var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-surface));
 }
 .nav-item kbd {
   font-size: 9px;
@@ -242,8 +247,14 @@ dd {
   gap: 5px;
 }
 .sidebar-bottom select {
-  font-size: 11px;
-  padding: 7px;
+  min-height: 38px;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-surface));
+}
+.sidebar-bottom select:hover {
+  border-color: var(--text-muted);
 }
 .topbar {
   height: 56px;

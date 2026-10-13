@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Restored softer sidebar navigation with more spacing, a subtle active tint and an accent edge.
+- Improved language and theme selectors with comfortable sizing and modest rounded corners.
+
 ## 0.1.2
 
 - Added Obsidian Monolith (default), Tokyo Night Terminal, Paper & Ink and Solarized Machining themes with a saved selection.

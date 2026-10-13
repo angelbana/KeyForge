@@ -380,7 +380,7 @@ function App() {
               ))}
             </select>
           </label>
-          <small>KeyForge 0.1.2</small>
+          <small>KeyForge 0.1.3</small>
         </div>
       </aside>
       <main>
