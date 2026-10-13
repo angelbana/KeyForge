@@ -1,4 +1,9 @@
 export const en = {
+  installOnServer: "Command for the server",
+  serverUser: "Server account (empty = current user)",
+  serverCommandHint:
+    "Paste this command into a Linux/macOS server terminal. It installs this public key for the current account, or uses sudo for the account you specify. An existing key is kept without adding a duplicate, including its access restrictions.",
+  prepareServerCommand: "Prepare server command",
   operationCancelled: "Operation cancelled.",
   targetPath: "Target file path",
   choosePath: "Choose file path",
@@ -169,6 +174,11 @@ export const en = {
   unauthorized: "This request did not originate from the application window.",
 };
 export const ru: Record<keyof typeof en, string> = {
+  installOnServer: "Команда для сервера",
+  serverUser: "Пользователь сервера (пусто = текущий)",
+  serverCommandHint:
+    "Вставьте команду в терминал сервера Linux/macOS. Она установит этот публичный ключ текущему пользователю или указанному пользователю через sudo. Уже установленный ключ не дублируется, его ограничения сохраняются.",
+  prepareServerCommand: "Подготовить команду для сервера",
   operationCancelled: "Операция отменена.",
   targetPath: "Путь целевого файла",
   choosePath: "Выбрать путь",

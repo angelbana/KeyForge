@@ -11,6 +11,7 @@
 - Выбор другого пути через системный диалог. Нельзя перезаписать существующую пару; ключи из других каталогов не входят в стандартный обзор.
 - Для FIDO2: `resident`, `verify-required`, запрос PIN, ожидание касания, отмена и тайм-аут. Приложение определяет поддержку алгоритмов OpenSSH, а не подключение устройства.
 - Команды установки публичного ключа для PowerShell/POSIX; интерактивный `ssh-copy-id` на Linux/macOS, если он установлен.
+- Кнопка «Команда для сервера» в карточке ключа: подготовка и копирование команды для вставки прямо в терминал сервера. Пустое имя пользователя означает текущую учётную запись; другое имя использует `sudo -u … -H` и требует установленного sudo и соответствующих прав. Ключ не дублируется, существующие ограничения в authorized_keys сохраняются.
 - Редактор SSH config с визуальным добавлением Host, сохранением исходного текста, резервной копией, проверкой конфликтов и `ssh -G`.
 - Справочник SSH + TOTP для Ubuntu/Debian. Это инструкции для администратора, а не автоматическое изменение PAM.
 
@@ -31,7 +32,7 @@ npm run pack          # Unpacked desktop application
 npm run dist          # Windows NSIS / Linux AppImage+deb / macOS DMG
 ```
 
-Исходники находятся в `git/`. Пакеты создаются в соседнем `build/packages/`, отчёты smoke-теста — в `verification/`. Компиляция создаёт игнорируемый `git/dist/`, который нужен Electron; он не коммитится. Для локальной сборки с уже установленным Electron можно выполнить:
+Исходники находятся в `git/`. Пакеты создаются в соседнем `build/packages/`, отчёты smoke-теста — в `verification/`. Промежуточная компиляция находится в `build/compiled/`, вне репозитория. Для локальной сборки с уже установленным Electron можно выполнить:
 
 ```sh
 npm exec electron-builder -- --dir --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false
@@ -62,6 +63,8 @@ Install Node.js 24 and OpenSSH, run `npm ci`, then `npm run dev`. `npm run check
 The explorer scans the default SSH directory, displays public metadata and copies only public keys. Generation supports Ed25519, NIST ECDSA, RSA 3072/4096 and security key algorithms, with passphrase/PIN prompts through a PTY. Custom save paths require the native file dialog. Existing files cannot be replaced. Unix permissions and Windows ACLs are restricted to the current user; custom destination directories are restricted too. Windows ACL auditing is displayed as unknown.
 
 Deployment provides PowerShell/POSIX commands and optional ssh-copy-id on Unix. The config editor preserves comments and directives, creates backups, checks revisions and uses a validated temporary snapshot for `ssh -G`. Safe validation blocks Include, Match and executable directives. Edit advanced configs in a trusted external editor. Existing Host entries are editable as text; the visual form prepends new Host blocks. No network handshake is implied by local resolution.
+
+The key detail panel also offers a “Command for the server” button. Paste the copied command into a Linux/macOS server terminal. Leave the account empty to install for the current account; a specified account uses sudo and requires appropriate privileges. Duplicate detection ignores comments and preserves restrictions on existing authorized_keys entries. Only the public key is embedded.
 
 Hardware support detection means OpenSSH algorithm support, not device discovery. Real FIDO2 enrollment, server deployment, Linux/macOS packages and PAM/TOTP require separate verification. The 2FA checklist must be adapted to the server's existing PAM stack and tested with recovery access. Secrets are transient; JavaScript cannot guarantee erasure of immutable strings from RAM. Cancellation may leave a resident credential on the token. Manual deployment can append duplicates. This version does not support private-key export, SSH certificates or agent/resident-credential management.
 

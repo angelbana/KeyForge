@@ -74,6 +74,12 @@ app.whenReady().then(() => {
   handle("copyPublic", async (name) =>
     clipboard.writeText(await service.publicText(name)),
   );
+  handle("serverCommand", (name, user) => service.serverCommand(name, user));
+  handle("copyServerCommand", async (name, user) => {
+    const command = await service.serverCommand(name, user);
+    await clipboard.writeText(command);
+    return command;
+  });
   handle("chooseTarget", async (name: string) => {
     validateName(name);
     const selection = await dialog.showSaveDialog(window!, {

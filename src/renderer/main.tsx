@@ -93,6 +93,9 @@ function App() {
   });
   const [caps, setCaps] = useState<Capabilities>();
   const [selected, setSelected] = useState("");
+  const [installOpen, setInstallOpen] = useState(false);
+  const [installUser, setInstallUser] = useState("");
+  const [installCommand, setInstallCommand] = useState("");
   const [request, setRequest] = useState(initialRequest);
   const [allowEmpty, setAllowEmpty] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -130,6 +133,7 @@ function App() {
   async function refresh() {
     if (!api) return;
     const value = await unwrap(api.scan());
+    setInstallCommand("");
     setScan(value);
     setSelected((old) =>
       value.keys.some((key) => key.name === old)
@@ -256,7 +260,7 @@ function App() {
               <option value="en">English</option>
             </select>
           </label>
-          <small>KeyForge 0.1.0</small>
+          <small>KeyForge 0.1.1</small>
         </div>
       </aside>
       <main>
@@ -330,7 +334,11 @@ function App() {
                             : "key-item"
                         }
                         key={item.name}
-                        onClick={() => setSelected(item.name)}
+                        disabled={busy}
+                        onClick={() => {
+                          setSelected(item.name);
+                          setInstallCommand("");
+                        }}
                       >
                         <span className="key-symbol">⌘</span>
                         <span>
@@ -402,6 +410,72 @@ function App() {
                       >
                         {t("copy")}
                       </button>
+                      <button
+                        disabled={busy || !api}
+                        aria-expanded={installOpen}
+                        onClick={() => setInstallOpen((open) => !open)}
+                      >
+                        {t("installOnServer")}
+                      </button>
+                      {installOpen && (
+                        <section className="server-install">
+                          <p className="muted">{t("serverCommandHint")}</p>
+                          <label>
+                            {t("serverUser")}
+                            <input
+                              disabled={busy}
+                              value={installUser}
+                              maxLength={64}
+                              onChange={(event) => {
+                                setInstallUser(event.target.value);
+                                setInstallCommand("");
+                              }}
+                            />
+                          </label>
+                          <div className="actions">
+                            <button
+                              className="prepare-server-command"
+                              disabled={busy || !api}
+                              onClick={() =>
+                                void act(async () =>
+                                  setInstallCommand(
+                                    await unwrap(
+                                      api!.serverCommand(key.name, installUser),
+                                    ),
+                                  ),
+                                )
+                              }
+                            >
+                              {t("prepareServerCommand")}
+                            </button>
+                          </div>
+                          {installCommand && (
+                            <>
+                              <pre>{installCommand}</pre>
+                              <button
+                                className="copy-server-command primary"
+                                disabled={busy || !api}
+                                onClick={() =>
+                                  void act(
+                                    async () =>
+                                      setInstallCommand(
+                                        await unwrap(
+                                          api!.copyServerCommand(
+                                            key.name,
+                                            installUser,
+                                          ),
+                                        ),
+                                      ),
+                                    "commandCopied",
+                                  )
+                                }
+                              >
+                                {t("copyCommand")}
+                              </button>
+                            </>
+                          )}
+                        </section>
+                      )}
                       {key.privatePresent && (
                         <button
                           disabled={busy || !api}

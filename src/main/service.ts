@@ -8,6 +8,7 @@ import {
   validateName,
   validateServer,
   deploymentSnippets,
+  serverInstallCommand,
 } from "./commands";
 import { parseConfig, parsePublicKey, privateEncryption } from "./parsers";
 import { InteractiveRunner } from "./interactive";
@@ -76,6 +77,9 @@ async function restrictWindows(
   ]);
 }
 export class KeyService {
+  async serverCommand(name: string, user: string): Promise<string> {
+    return serverInstallCommand(await this.publicText(name), user);
+  }
   readonly directory: string;
   readonly interactive: InteractiveRunner;
   private configSaving = false;

@@ -4,6 +4,10 @@ const api: Api = {
   scan: () => ipcRenderer.invoke("keyforge:scan"),
   capabilities: () => ipcRenderer.invoke("keyforge:capabilities"),
   copyPublic: (name) => ipcRenderer.invoke("keyforge:copyPublic", name),
+  serverCommand: (name, user) =>
+    ipcRenderer.invoke("keyforge:serverCommand", name, user),
+  copyServerCommand: (name, user) =>
+    ipcRenderer.invoke("keyforge:copyServerCommand", name, user),
   generate: (request) => ipcRenderer.invoke("keyforge:generate", request),
   chooseTarget: (name) => ipcRenderer.invoke("keyforge:chooseTarget", name),
   cancel: () => ipcRenderer.invoke("keyforge:cancel"),

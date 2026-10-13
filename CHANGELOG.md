@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Added a key explorer button to prepare and copy a command for installation directly on a server.
+- Supports the current account or another account through sudo, safe quoting and duplicate detection that preserves existing key restrictions.
+
 ## 0.1.0
 
 - Russian and English desktop interface.

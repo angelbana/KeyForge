@@ -61,6 +61,8 @@ export interface Api {
   scan(): Promise<Result<KeyScan>>;
   capabilities(): Promise<Result<Capabilities>>;
   copyPublic(name: string): Promise<Result<void>>;
+  serverCommand(name: string, user: string): Promise<Result<string>>;
+  copyServerCommand(name: string, user: string): Promise<Result<string>>;
   generate(request: GenerateRequest): Promise<Result<void>>;
   chooseTarget(name: string): Promise<Result<string | null>>;
   cancel(): Promise<Result<void>>;

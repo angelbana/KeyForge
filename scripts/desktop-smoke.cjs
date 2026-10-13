@@ -102,6 +102,12 @@ app
       config: () => service.config(),
       copyPublic: async (name) =>
         clipboard.writeText(await service.publicText(name)),
+      serverCommand: (name, user) => service.serverCommand(name, user),
+      copyServerCommand: async (name, user) => {
+        const command = await service.serverCommand(name, user);
+        await clipboard.writeText(command);
+        return command;
+      },
       snippets: (server) => service.snippets(server),
       validateConfig: (text) => service.validateConfig(text),
       saveConfig: (text, revision) => service.saveConfig(text, revision),
@@ -157,7 +163,7 @@ app
     );
     stage = "preload and clipboard";
     assert.equal(await evaluate("typeof window.require"), "undefined");
-    assert.equal(await evaluate("Object.keys(window.keyforge).length"), 15);
+    assert.equal(await evaluate("Object.keys(window.keyforge).length"), 17);
     assert.equal(
       await evaluate("document.querySelector('.key-detail .primary').disabled"),
       false,
@@ -168,6 +174,31 @@ app
     assert.match(await clipboard.readText(), /^(ssh-|ecdsa-|sk-)/);
     await clipboard.clear();
     await fs.mkdir(reportDirectory, { recursive: true });
+    stage = "server command clipboard";
+    await evaluate(
+      "document.querySelector('.key-detail button[aria-expanded]').click()",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate("document.querySelector('.prepare-server-command').click()");
+    for (let attempt = 0; attempt < 30; attempt++) {
+      if (
+        await evaluate(
+          "!!document.querySelector('.copy-server-command') && !document.querySelector('.copy-server-command').disabled",
+        )
+      )
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await evaluate("document.querySelector('.copy-server-command').click()");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(
+      await clipboard.readText(),
+      await service.serverCommand("test-ecdsa", ""),
+    );
+    await clipboard.clear();
+    checks.push(
+      "server-side command prepared and copied through the real UI and clipboard",
+    );
     await fs.writeFile(
       path.join(reportDirectory, "keyforge-ru.png"),
       (await window.webContents.capturePage()).toPNG(),

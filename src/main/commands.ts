@@ -1,4 +1,5 @@
 import type { GenerateRequest, Server } from "../shared/types";
+import { parsePublicKey } from "./parsers";
 export function validateName(name: string): void {
   if (
     typeof name !== "string" ||
@@ -77,4 +78,32 @@ export function deploymentSnippets(server: Server) {
     posix: `cat "$HOME/.ssh/${server.keyName}.pub" | ssh -p ${server.port} ${sh(target)} ${sh(remoteInstall)}`,
     powershell: `& { $OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-Content -LiteralPath (Join-Path $env:USERPROFILE '.ssh/${server.keyName}.pub') -Encoding UTF8 -Raw | ssh -p ${server.port} ${ps(target)} ${ps(remoteInstall)} }`,
   };
+}
+export function serverInstallCommand(publicKey: string, user: string): string {
+  if (
+    typeof user !== "string" ||
+    (user !== "" && !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/.test(user))
+  )
+    throw new Error("invalidHost");
+  const key = publicKey.trim();
+  const { type } = parsePublicKey(key);
+  const blob = key.split(/\s+/)[1];
+  const script = `set -eu
+umask 077
+command -v awk >/dev/null
+ssh_dir="$HOME/.ssh"
+authorized="$ssh_dir/authorized_keys"
+if [ -L "$ssh_dir" ] || [ -L "$authorized" ]; then
+  printf '%s\\n' 'Refusing symbolic links in the SSH destination.' >&2
+  exit 1
+fi
+mkdir -p "$ssh_dir"
+[ ! -e "$authorized" ] || [ -f "$authorized" ]
+chmod 700 "$ssh_dir"
+touch "$authorized"
+chmod 600 "$authorized"
+if ! awk -v type=${sh(type)} -v blob=${sh(blob)} '/^[[:space:]]*#/ {next} {for (i=1; i<NF; i++) if ($i==type && $(i+1)==blob) found=1} END {exit !found}' "$authorized"; then
+  printf '\\n%s\\n' ${sh(key)} >> "$authorized"
+fi`;
+  return `${user ? `sudo -u ${sh(user)} -H ` : ""}sh -c ${sh(script)}`;
 }
