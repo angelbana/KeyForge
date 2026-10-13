@@ -32,10 +32,11 @@ npm run pack          # Unpacked desktop application
 npm run dist          # Windows NSIS / Linux AppImage+deb / macOS DMG
 ```
 
-Исходники находятся в `git/`. Пакеты создаются в соседнем `build/packages/`, отчёты smoke-теста — в `verification/`. Промежуточная компиляция находится в `build/compiled/`, вне репозитория. Для локальной сборки с уже установленным Electron можно выполнить:
+Исходники находятся в `git/`. После `npm run pack` актуальное распакованное приложение находится прямо в `build/` (Windows: `build/KeyForge.exe`). Промежуточная компиляция, кэш упаковки и установщики находятся в `verification/build-work/`, вне репозитория. Архивы ZIP автоматически не создаются. Для локальной сборки с уже установленным Electron можно выполнить:
 
 ```sh
 npm exec electron-builder -- --dir --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false
+node scripts/publish-local-build.cjs
 ```
 
 Эта команда создаёт неподписанное Windows-приложение и пропускает изменение ресурсов EXE. Обычная `npm run dist` использует стандартный процесс упаковки. Для публичных релизов настройте подписи через защищённые настройки CI.
@@ -58,7 +59,7 @@ GitHub CI проверяет три ОС и создаёт локальные п
 
 KeyForge is a local SSH key manager with Russian and English UI. It uses Electron, React, strict TypeScript and Tailwind CSS. Native OpenSSH creates encrypted software keys and FIDO2 credentials; private material never enters the renderer or clipboard.
 
-Install Node.js 24 and OpenSSH, run `npm ci`, then `npm run dev`. `npm run check` runs lint, parser/service tests, type checks and the frontend build. `npm run smoke` exercises real Electron and OpenSSH in a temporary SSH directory. `npm run pack` creates an unpacked app; `npm run dist` creates platform packages. Build on each target operating system. Linux may need native build tools for node-pty. No cloud service, telemetry or account is required.
+Install Node.js 24 and OpenSSH, run `npm ci`, then `npm run dev`. `npm run check` runs lint, parser/service tests, type checks and the frontend build. `npm run smoke` exercises real Electron and OpenSSH in a temporary SSH directory. `npm run pack` places the current unpacked app directly in the sibling build/ folder; `npm run dist` creates platform packages. Build on each target operating system. Linux may need native build tools for node-pty. No cloud service, telemetry or account is required.
 
 The explorer scans the default SSH directory, displays public metadata and copies only public keys. Generation supports Ed25519, NIST ECDSA, RSA 3072/4096 and security key algorithms, with passphrase/PIN prompts through a PTY. Custom save paths require the native file dialog. Existing files cannot be replaced. Unix permissions and Windows ACLs are restricted to the current user; custom destination directories are restricted too. Windows ACL auditing is displayed as unknown.
 

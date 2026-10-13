@@ -2,10 +2,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const target = path.join(root, "node_modules");
-const link = path.resolve(root, "../build/compiled/node_modules");
+const link = path.resolve(
+  root,
+  "../verification/build-work/compiled/node_modules",
+);
 fs.cpSync(
   path.join(root, "assets"),
-  path.resolve(root, "../build/compiled/assets"),
+  path.resolve(root, "../verification/build-work/compiled/assets"),
   { recursive: true },
 );
 try {

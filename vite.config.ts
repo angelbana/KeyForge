@@ -4,5 +4,8 @@ import tailwind from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwind()],
   base: "./",
-  build: { outDir: "../build/compiled/renderer", emptyOutDir: false },
+  build: {
+    outDir: "../verification/build-work/compiled/renderer",
+    emptyOutDir: false,
+  },
 });

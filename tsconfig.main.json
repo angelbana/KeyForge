@@ -6,7 +6,7 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "../build/compiled",
+    "outDir": "../verification/build-work/compiled",
     "rootDir": "src"
   },
   "include": ["src/main", "src/shared"]

@@ -5,12 +5,12 @@
   "description": "Local SSH key and configuration manager",
   "main": "compiled/main/main.js",
   "scripts": {
-    "dev": "npm run build && electron ../build/compiled/main/main.js",
+    "dev": "npm run build && electron ../verification/build-work/compiled/main/main.js",
     "build": "tsc -p tsconfig.main.json && tsc --noEmit -p tsconfig.json && vite build && node scripts/link-dependencies.cjs",
     "test": "tsx --test tests/*.test.ts",
     "lint": "eslint src tests scripts",
     "check": "npm run lint && npm run test && npm run build",
-    "pack": "npm run build && electron-builder --dir",
+    "pack": "npm run build && electron-builder --dir && node scripts/publish-local-build.cjs",
     "dist": "npm run build && electron-builder",
     "smoke": "npm run build && electron scripts/desktop-smoke.cjs"
   },
@@ -41,11 +41,11 @@
     "appId": "io.keyforge.desktop",
     "productName": "KeyForge",
     "directories": {
-      "output": "../build/packages"
+      "output": "../verification/build-work/packages"
     },
     "files": [
       {
-        "from": "../build/compiled",
+        "from": "../verification/build-work/compiled",
         "to": "compiled",
         "filter": [
           "**/*",

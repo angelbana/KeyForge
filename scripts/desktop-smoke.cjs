@@ -5,7 +5,9 @@ const { tmpdir } = require("node:os");
 const path = require("node:path");
 const { randomBytes } = require("node:crypto");
 const assert = require("node:assert/strict");
-const { KeyService } = require("../../build/compiled/main/service");
+const {
+  KeyService,
+} = require("../../verification/build-work/compiled/main/service");
 let service, directory, window;
 let stage = "startup",
   failed = false;
@@ -131,7 +133,10 @@ app
       height: 860,
       show: false,
       webPreferences: {
-        preload: path.join(root, "../build/compiled/main/preload.js"),
+        preload: path.join(
+          root,
+          "../verification/build-work/compiled/main/preload.js",
+        ),
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
@@ -145,7 +150,10 @@ app
       if (message.includes("Uncaught")) errors++;
     });
     await window.loadFile(
-      path.join(root, "../build/compiled/renderer/index.html"),
+      path.join(
+        root,
+        "../verification/build-work/compiled/renderer/index.html",
+      ),
     );
     const evaluate = (code) => window.webContents.executeJavaScript(code);
     for (let attempt = 0; attempt < 60; attempt++) {
