@@ -19,15 +19,17 @@
 - Редактор SSH config с визуальным добавлением Host, сохранением исходного текста, резервной копией, проверкой конфликтов и `ssh -G`.
 - Справочник SSH + TOTP для Ubuntu/Debian. Это инструкции для администратора, а не автоматическое изменение PAM.
 
+## Скачать готовую сборку
+
+[Скачать KeyForge для Windows x64](https://github.com/angelbana/KeyForge/releases/latest). В разделе Assets выберите файл `KeyForge-0.1.3-windows-x64.zip`, распакуйте весь архив в отдельную папку и запустите `KeyForge.exe`. Node.js, npm и Git для запуска не нужны; клиент OpenSSH должен быть установлен. Сборка пока без цифровой подписи. Готовые пакеты Linux/macOS пока не опубликованы.
+
 ## Запуск и сборка
 
 Требуются Git, Node.js 24, npm и клиент OpenSSH (`ssh`, `ssh-keygen`) в PATH. На Windows рекомендуется встроенный OpenSSH. В Linux для сборки node-pty могут понадобиться Python 3, make и C++ compiler; для запуска Electron нужны стандартные библиотеки Chromium. Сборку установщика выполняйте на целевой ОС.
 
 ```powershell
-mkdir KeyForge
+git clone https://github.com/angelbana/KeyForge.git
 cd KeyForge
-git clone https://github.com/angelbana/KeyForge.git git
-cd git
 npm ci
 npm run dev
 ```
@@ -39,7 +41,7 @@ npm run pack          # Unpacked desktop application
 npm run dist          # Windows NSIS / Linux AppImage+deb / macOS DMG
 ```
 
-Команды выполняются из корня клонированного репозитория (`KeyForge/git/` в примере выше). После `npm run pack` актуальное распакованное приложение находится в соседней папке `../build/` (Windows: `../build/KeyForge.exe`). Промежуточная компиляция и пакеты находятся в `../verification/build-work/`, вне репозитория. Эти каталоги создаются автоматически. Архивы ZIP автоматически не создаются. Для неподписанной Windows-сборки с Electron, установленным через `npm ci`, выполните в PowerShell:
+Команды выполняются из корня клонированного репозитория (`KeyForge/` в примере выше). После `npm run pack` актуальное распакованное приложение находится в соседней папке `../build/` (Windows: `../build/KeyForge.exe`). Промежуточная компиляция и пакеты находятся в `../verification/build-work/`, вне репозитория. Эти каталоги создаются автоматически. Архивы ZIP автоматически не создаются. Для неподписанной Windows-сборки с Electron, установленным через `npm ci`, выполните в PowerShell:
 
 ```powershell
 npm run build
@@ -67,17 +69,17 @@ GitHub CI запускает проверки и упаковку на трёх 
 
 ## English
 
+[Download the Windows x64 build](https://github.com/angelbana/KeyForge/releases/latest). Choose KeyForge-0.1.3-windows-x64.zip under Assets, extract the entire archive and run KeyForge.exe. No Node.js, npm or Git is needed to run the app; OpenSSH is required. The build is unsigned. Linux/macOS packages are not published yet.
+
 KeyForge is a local SSH key manager with Russian and English UI. It uses Electron, React, strict TypeScript and Tailwind CSS. Native OpenSSH creates encrypted software keys and FIDO2 credentials; private material never enters the renderer or clipboard.
 
 Four persisted themes are available: Obsidian Monolith (default), Tokyo Night Terminal, Paper & Ink, and Solarized Machining. Technical data uses monospace typography, SHA256 fingerprints retain their original base64 while being grouped in pairs, and copy actions confirm inline. Ctrl/Command+K focuses the selected key; Ctrl/Command+C copies its public key when no editable field or text selection owns the shortcut. The four-segment passphrase meter estimates length only. Optional libfido2 enumeration distinguishes physical tokens from Windows Hello; unavailable detection is shown explicitly. Amber touch indication follows OpenSSH output and respects reduced motion. Physical enrollment and signing still require separate verification.
 
-Install Git, Node.js 24 and OpenSSH, then clone into a dedicated workspace:
+Install Git, Node.js 24 and OpenSSH, then clone the repository:
 
 ```sh
-mkdir KeyForge
+git clone https://github.com/angelbana/KeyForge.git
 cd KeyForge
-git clone https://github.com/angelbana/KeyForge.git git
-cd git
 npm ci
 npm run dev
 ```
