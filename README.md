@@ -21,10 +21,13 @@
 
 ## Запуск и сборка
 
-Требуются Node.js 24, npm и клиент OpenSSH (`ssh`, `ssh-keygen`) в PATH. На Windows рекомендуется встроенный OpenSSH. В Linux для сборки node-pty могут понадобиться Python 3, make и C++ compiler; для запуска Electron нужны стандартные библиотеки Chromium. Сборку установщика выполняйте на целевой ОС.
+Требуются Git, Node.js 24, npm и клиент OpenSSH (`ssh`, `ssh-keygen`) в PATH. На Windows рекомендуется встроенный OpenSSH. В Linux для сборки node-pty могут понадобиться Python 3, make и C++ compiler; для запуска Electron нужны стандартные библиотеки Chromium. Сборку установщика выполняйте на целевой ОС.
 
 ```powershell
-cd D:/Projects/KeyForge/git
+mkdir KeyForge
+cd KeyForge
+git clone https://github.com/angelbana/KeyForge.git git
+cd git
 npm ci
 npm run dev
 ```
@@ -36,10 +39,13 @@ npm run pack          # Unpacked desktop application
 npm run dist          # Windows NSIS / Linux AppImage+deb / macOS DMG
 ```
 
-Исходники находятся в `git/`. После `npm run pack` актуальное распакованное приложение находится прямо в `build/` (Windows: `build/KeyForge.exe`). Промежуточная компиляция, кэш упаковки и установщики находятся в `verification/build-work/`, вне репозитория. Архивы ZIP автоматически не создаются. Для локальной сборки с уже установленным Electron можно выполнить:
+Команды выполняются из корня клонированного репозитория (`KeyForge/git/` в примере выше). После `npm run pack` актуальное распакованное приложение находится в соседней папке `../build/` (Windows: `../build/KeyForge.exe`). Промежуточная компиляция и пакеты находятся в `../verification/build-work/`, вне репозитория. Эти каталоги создаются автоматически. Архивы ZIP автоматически не создаются. Для неподписанной Windows-сборки с Electron, установленным через `npm ci`, выполните в PowerShell:
 
-```sh
-npm exec electron-builder -- --dir --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false
+```powershell
+npm run build
+npm exec electron-builder -- --dir `
+  --config.electronDist=node_modules/electron/dist `
+  --config.win.signAndEditExecutable=false
 node scripts/publish-local-build.cjs
 ```
 
@@ -57,7 +63,7 @@ SSH config сохраняется целиком с нормализацией C
 
 Ручные команды установки добавляют строку в authorized_keys и могут создавать дубликаты. FIDO2, серверное развёртывание и PAM требуют проверки с реальным устройством/сервером. Их успешная работа не выводится из результатов локальных тестов. Linux/macOS сборки должны пройти CI на соответствующих ОС. Ключи без `.pub`, сертификаты OpenSSH, агент SSH и управление resident credentials не входят в эту версию.
 
-GitHub CI проверяет три ОС и создаёт локальные пакеты, не публикует релизы. Репозиторий и ветка публикации задаются владельцем; исходный проект не содержит remote. Аудит инструментов сборки может показывать отдельные проблемы транзитивных devDependencies: смотрите `npm audit` и локальный отчёт. `npm audit --omit=dev` проверяет runtime-зависимости отдельно.
+GitHub CI запускает проверки и упаковку на трёх ОС, не публикует релизы. Результаты доступны во вкладке Actions репозитория. Аудит инструментов сборки может показывать отдельные проблемы транзитивных devDependencies: смотрите `npm audit`. `npm audit --omit=dev` проверяет runtime-зависимости отдельно.
 
 ## English
 
@@ -65,7 +71,18 @@ KeyForge is a local SSH key manager with Russian and English UI. It uses Electro
 
 Four persisted themes are available: Obsidian Monolith (default), Tokyo Night Terminal, Paper & Ink, and Solarized Machining. Technical data uses monospace typography, SHA256 fingerprints retain their original base64 while being grouped in pairs, and copy actions confirm inline. Ctrl/Command+K focuses the selected key; Ctrl/Command+C copies its public key when no editable field or text selection owns the shortcut. The four-segment passphrase meter estimates length only. Optional libfido2 enumeration distinguishes physical tokens from Windows Hello; unavailable detection is shown explicitly. Amber touch indication follows OpenSSH output and respects reduced motion. Physical enrollment and signing still require separate verification.
 
-Install Node.js 24 and OpenSSH, run `npm ci`, then `npm run dev`. `npm run check` runs lint, parser/service tests, type checks and the frontend build. `npm run smoke` exercises real Electron and OpenSSH in a temporary SSH directory. `npm run pack` places the current unpacked app directly in the sibling build/ folder; `npm run dist` creates platform packages. Build on each target operating system. Linux may need native build tools for node-pty. No cloud service, telemetry or account is required.
+Install Git, Node.js 24 and OpenSSH, then clone into a dedicated workspace:
+
+```sh
+mkdir KeyForge
+cd KeyForge
+git clone https://github.com/angelbana/KeyForge.git git
+cd git
+npm ci
+npm run dev
+```
+
+Run all npm commands from the cloned repository root. `npm run check` runs lint, parser/service tests, type checks and the frontend build. `npm run smoke` exercises real Electron and OpenSSH in a temporary SSH directory. `npm run pack` places the current unpacked app directly in `../build/` (Windows: `../build/KeyForge.exe`); `npm run dist` creates platform packages in `../verification/build-work/packages/`. Output directories are created automatically outside the repository. Build on each target operating system. Linux may need native build tools for node-pty. The unsigned Windows example above uses PowerShell line continuation and runs `npm run build` before packaging. No cloud service, telemetry or account is required.
 
 The explorer scans the default SSH directory, displays public metadata and copies only public keys. Generation supports Ed25519, NIST ECDSA, RSA 3072/4096 and security key algorithms, with passphrase/PIN prompts through a PTY. Custom save paths require the native file dialog. Existing files cannot be replaced. Unix permissions and Windows ACLs are restricted to the current user; custom destination directories are restricted too. Windows ACL auditing is displayed as unknown.
 
