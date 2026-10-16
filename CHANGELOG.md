@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Stopped adding blank lines before installed public keys. A separator is added only when an existing authorized_keys file lacks a final newline; existing entries and spacing are preserved.
+
 ## 0.1.5
 
 - Added an explicit Show/Hide control for generated or entered passphrases, with automatic masking on blur, navigation and submission.

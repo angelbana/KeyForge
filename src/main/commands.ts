@@ -91,6 +91,7 @@ export function serverInstallCommand(publicKey: string, user: string): string {
   const script = `set -eu
 umask 077
 command -v awk >/dev/null
+command -v tail >/dev/null
 ssh_dir="$HOME/.ssh"
 authorized="$ssh_dir/authorized_keys"
 if [ -L "$ssh_dir" ] || [ -L "$authorized" ]; then
@@ -103,7 +104,13 @@ chmod 700 "$ssh_dir"
 touch "$authorized"
 chmod 600 "$authorized"
 if ! awk -v type=${sh(type)} -v blob=${sh(blob)} '/^[[:space:]]*#/ {next} {for (i=1; i<NF; i++) if ($i==type && $(i+1)==blob) found=1} END {exit !found}' "$authorized"; then
-  printf '\\n%s\\n' ${sh(key)} >> "$authorized"
+  if [ -s "$authorized" ]; then
+    last_byte=$(tail -c 1 "$authorized" && printf '.')
+    if [ "$last_byte" != "$(printf '\\n.')" ]; then
+      printf '\\n' >> "$authorized"
+    fi
+  fi
+  printf '%s\\n' ${sh(key)} >> "$authorized"
 fi`;
   return `${user ? `sudo -u ${sh(user)} -H ` : ""}sh -c ${sh(script)}`;
 }

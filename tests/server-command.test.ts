@@ -83,7 +83,7 @@ test(
       };
       execute(command);
       const authorized = join(directory, ".ssh", "authorized_keys");
-      assert.equal((await fs.readFile(authorized, "utf8")).trim(), key);
+      assert.equal(await fs.readFile(authorized, "utf8"), `${key}\n`);
       assert.equal(existsSync(join(directory, "INJECTION")), false);
       execute(
         serverInstallCommand(
@@ -91,7 +91,7 @@ test(
           "",
         ),
       );
-      assert.equal((await fs.readFile(authorized, "utf8")).trim(), key);
+      assert.equal(await fs.readFile(authorized, "utf8"), `${key}\n`);
       const restricted = `restrict ${key}`;
       await fs.writeFile(authorized, restricted); // Also checks files without a final newline.
       execute(command);
@@ -101,6 +101,19 @@ test(
       assert.equal(
         await fs.readFile(authorized, "utf8"),
         `${restricted}\n${other}\n`,
+      );
+      const third = publicKey("third");
+      execute(serverInstallCommand(third, ""));
+      assert.equal(
+        await fs.readFile(authorized, "utf8"),
+        `${restricted}\n${other}\n${third}\n`,
+      );
+      // Preserve a pre-existing separator rather than editing existing content.
+      await fs.writeFile(authorized, `${restricted}\n\n`);
+      execute(serverInstallCommand(other, ""));
+      assert.equal(
+        await fs.readFile(authorized, "utf8"),
+        `${restricted}\n\n${other}\n`,
       );
       if (process.platform !== "win32") {
         assert.equal(
