@@ -41,3 +41,11 @@ test("ordinary PIN prompts and unrecognized terminal data are not diagnoses", ()
   ])
     assert.equal(hardwareEnrollmentFailure(output), undefined);
 });
+test("actual Windows FIDO access denial is not collapsed into an unknown failure", () => {
+  assert.equal(
+    hardwareEnrollmentFailure(
+      "You may need to touch your authenticator to authorize key generation.\r\nKey enrollment failed: bad permissions\r\n",
+    ),
+    "hardwareAccessDenied",
+  );
+});

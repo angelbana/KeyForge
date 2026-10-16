@@ -1,6 +1,6 @@
 {
   "name": "keyforge",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "Local SSH key and configuration manager",
   "main": "compiled/main/main.js",

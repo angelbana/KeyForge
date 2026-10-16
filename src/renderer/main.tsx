@@ -389,7 +389,7 @@ function App() {
               ))}
             </select>
           </label>
-          <small>KeyForge 0.1.6</small>
+          <small>KeyForge 0.1.7</small>
         </div>
       </aside>
       <main>
@@ -905,6 +905,20 @@ function App() {
                         state={hardwareState}
                         label={hardwareLabel}
                       />
+                      {caps?.platform === "win32" && (
+                        <p
+                          className="muted windows-elevation"
+                          data-elevated={String(caps.windowsElevated)}
+                        >
+                          {t(
+                            caps.windowsElevated === true
+                              ? "windowsElevated"
+                              : caps.windowsElevated === false
+                                ? "windowsStandard"
+                                : "windowsElevationUnknown",
+                          )}
+                        </p>
+                      )}
                       <label className="checkbox">
                         <input
                           type="checkbox"

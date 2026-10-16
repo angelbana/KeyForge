@@ -5,6 +5,13 @@ export const en = {
   hardwareAbsent: "No device detected",
   hardwareReady: "Connected and ready",
   hardwareTouch: "OpenSSH requests a physical touch",
+  windowsElevated:
+    "Windows: running as administrator.",
+  windowsStandard:
+    "Windows: standard permissions. If OpenSSH reports bad permissions, close KeyForge and use Run as administrator.",
+  windowsElevationUnknown: "Windows: could not determine administrator status.",
+  hardwareAccessDenied:
+    "OpenSSH reports ‘bad permissions’: access to the FIDO token was denied. On Windows, close KeyForge and use Run as administrator, then check the permissions status in the form. On Linux, check the device access rules. Do not change the token PIN or reset the device to fix this error.",
   hardwareDetectionHint:
     "Device detection uses libfido2's optional fido2-token utility. Install it and refresh to detect connected USB tokens. OpenSSH algorithm support alone does not establish that a token is connected.",
   protection: "Protection",
@@ -214,6 +221,14 @@ export const ru: Record<keyof typeof en, string> = {
   hardwareAbsent: "Устройство не обнаружено",
   hardwareReady: "Подключён и готов",
   hardwareTouch: "OpenSSH ожидает физического касания",
+  windowsElevated:
+    "Windows: запущено от администратора.",
+  windowsStandard:
+    "Windows: обычные права. При ошибке OpenSSH «bad permissions» закройте KeyForge и запустите от имени администратора.",
+  windowsElevationUnknown:
+    "Windows: не удалось определить права администратора.",
+  hardwareAccessDenied:
+    "OpenSSH сообщает «bad permissions»: доступ к FIDO-токену запрещён. В Windows закройте KeyForge и запустите от имени администратора, затем проверьте статус прав в форме. В Linux проверьте правила доступа к устройству. Для этой ошибки не нужно менять PIN или сбрасывать токен.",
   hardwareDetectionHint:
     "Обнаружение использует необязательную утилиту fido2-token из libfido2. Установите её и обновите данные для поиска USB-токенов. Поддержка алгоритмов OpenSSH сама по себе не подтверждает подключение токена.",
   protection: "Защита",

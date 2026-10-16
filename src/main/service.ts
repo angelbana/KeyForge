@@ -257,6 +257,21 @@ export class KeyService {
             }),
         )
       ).some(Boolean);
+    let windowsElevated: boolean | undefined;
+    if (process.platform === "win32") {
+      try {
+        const result = await run("powershell.exe", [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "$identity = [Security.Principal.WindowsIdentity]::GetCurrent(); $principal = New-Object Security.Principal.WindowsPrincipal($identity); if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { '1' } else { '0' }",
+        ]);
+        if (result.trim() === "1") windowsElevated = true;
+        else if (result.trim() === "0") windowsElevated = false;
+      } catch {
+        /* Informational only: Windows Hello providers may work without elevation. */
+      }
+    }
     return {
       ssh,
       keygen,
@@ -265,6 +280,7 @@ export class KeyService {
         .split(/\r?\n/)
         .filter((value) => value.startsWith("sk-")),
       platform: process.platform,
+      windowsElevated,
     };
   }
   async generate(request: GenerateRequest): Promise<void> {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.7
+
+- Recognized OpenSSH's FIDO `bad permissions` error and added actionable access guidance instead of the generic enrollment message.
+- Showed actual Windows administrator status in the hardware-key form, without forcing elevation or changing token security options.
+
 ## 0.1.6
 
 - Stopped adding blank lines before installed public keys. A separator is added only when an existing authorized_keys file lacks a final newline; existing entries and spacing are preserved.

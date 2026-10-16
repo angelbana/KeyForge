@@ -56,6 +56,7 @@ export interface Capabilities {
   copyId: boolean;
   securityKeyAlgorithms: string[];
   platform: string;
+  windowsElevated?: boolean;
 }
 export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 export interface Api {

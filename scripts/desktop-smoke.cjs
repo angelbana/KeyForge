@@ -434,6 +434,21 @@ app
     checks.push(
       "generated passphrase can be revealed; remasked on blur/navigation, cleared on submission and never copied or persisted automatically",
     );
+    if (process.platform === "win32") {
+      const capabilities = await service.capabilities();
+      assert.equal(typeof capabilities.windowsElevated, "boolean");
+      await evaluate("document.querySelectorAll('.algorithm')[3].click()");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(
+        await evaluate(
+          "document.querySelector('.windows-elevation').dataset.elevated",
+        ),
+        String(capabilities.windowsElevated),
+      );
+      checks.push(
+        "hardware form shows the actual Windows elevation status from the backend without changing token settings",
+      );
+    }
     // Verify event rendering using explicit simulated states; this is not a live token check.
     await evaluate("document.querySelectorAll('nav button')[2].click()");
     await new Promise((resolve) => setTimeout(resolve, 100));
