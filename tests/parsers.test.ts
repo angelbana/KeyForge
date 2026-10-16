@@ -62,6 +62,24 @@ test("public parser rejects extra wire data and multiline injection", () => {
     ),
   );
 });
+test("public key comments reject terminal controls while preserving Unicode", () => {
+  const text = fixture().text.split(" ").slice(0, 2).join(" ");
+  assert.equal(
+    parsePublicKey(`${text} ключ от кбк 🔑`).comment,
+    "ключ от кбк 🔑",
+  );
+  for (const comment of [
+    "key\x07bell",
+    "key\x0econtrol",
+    "key\x1b[31m",
+    "key\x7fdelete",
+    "key\x9b31m",
+  ])
+    assert.throws(
+      () => parsePublicKey(`${text} ${comment}`),
+      /invalidPublicKey/,
+    );
+});
 test("hardware keys require application field", () => {
   const type = "sk-ssh-ed25519@openssh.com";
   const data = Buffer.concat([field(type), field(Buffer.alloc(32))]);

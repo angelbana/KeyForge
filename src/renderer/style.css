@@ -832,6 +832,17 @@ textarea {
 .server-install button {
   font-size: 11px;
 }
+.key-delete {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+.key-delete p {
+  margin: 8px 0 0;
+}
+button.danger {
+  border-color: var(--danger);
+}
 .modal-overlay {
   position: fixed;
   inset: 0;

@@ -62,9 +62,14 @@ test(
     const directory = await fs.mkdtemp(join(tmpdir(), "keyforge-install-"));
     try {
       const key = publicKey(
-        "quotes ' and $(touch INJECTION) `touch INJECTION` Unicode: ключ",
+        "quotes ' and $(touch INJECTION) `touch INJECTION` Unicode: ключ от кбк 🔑",
       );
       const command = serverInstallCommand(key, "");
+      assert.equal(
+        Array.from(command).some((char) => char.charCodeAt(0) > 127),
+        false,
+        "Clipboard command must survive ASCII-only terminal input",
+      );
       // Replace only the destination HOME expression, so the actual generated shell
       // runs against a temporary directory without changing the user's environment.
       const isolated = (value: string) =>

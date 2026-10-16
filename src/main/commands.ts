@@ -1,5 +1,5 @@
 import type { GenerateRequest, Server } from "../shared/types";
-import { parsePublicKey } from "./parsers";
+import { hasTerminalControls, parsePublicKey } from "./parsers";
 export function validateName(name: string): void {
   if (
     typeof name !== "string" ||
@@ -25,7 +25,7 @@ export function generationArgs(
   if (
     typeof request.comment !== "string" ||
     request.comment.length > 256 ||
-    /[\r\n\0]/.test(request.comment) ||
+    hasTerminalControls(request.comment) ||
     typeof request.passphrase !== "string" ||
     request.passphrase.length > 1024 ||
     /[\r\n\0]/.test(request.passphrase)
@@ -47,7 +47,12 @@ export function generationArgs(
   }
   if (request.algorithm.endsWith("-sk")) {
     if (request.resident)
-      args.push("-O", "resident", "-O", `application=ssh:keyforge:${request.name}`);
+      args.push(
+        "-O",
+        "resident",
+        "-O",
+        `application=ssh:keyforge:${request.name}`,
+      );
     if (request.verifyRequired) args.push("-O", "verify-required");
   } else if (request.resident || request.verifyRequired)
     throw new Error("invalidAlgorithm");
@@ -93,6 +98,8 @@ export function serverInstallCommand(publicKey: string, user: string): string {
 umask 077
 command -v awk >/dev/null
 command -v tail >/dev/null
+command -v base64 >/dev/null
+key=$(printf '%s' ${sh(Buffer.from(key, "utf8").toString("base64"))} | base64 -d)
 ssh_dir="$HOME/.ssh"
 authorized="$ssh_dir/authorized_keys"
 if [ -L "$ssh_dir" ] || [ -L "$authorized" ]; then
@@ -111,7 +118,7 @@ if ! awk -v type=${sh(type)} -v blob=${sh(blob)} '/^[[:space:]]*#/ {next} {for (
       printf '\\n' >> "$authorized"
     fi
   fi
-  printf '%s\\n' ${sh(key)} >> "$authorized"
+  printf '%s\\n' "$key" >> "$authorized"
 fi`;
   return `${user ? `sudo -u ${sh(user)} -H ` : ""}sh -c ${sh(script)}`;
 }

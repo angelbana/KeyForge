@@ -35,6 +35,13 @@ test("generation never places passphrase in argv", () => {
     "C:\\Users\\Example User\\.ssh\\test-key",
   );
 });
+test("generation refuses control characters in key comments", () => {
+  for (const comment of ["key\x07", "key\x0e", "key\x1b[31m"])
+    assert.throws(
+      () => generationArgs({ ...request, comment }, "/tmp/key"),
+      /invalidInput/,
+    );
+});
 test("RSA rejects 2048 and unsupported sizes", () => {
   for (const bits of [2048, 1024, 0, 4097])
     assert.throws(

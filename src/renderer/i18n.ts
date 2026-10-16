@@ -1,6 +1,17 @@
 export const en = {
   theme: "Theme",
   copiedInline: "[COPIED]",
+  deleteKey: "Delete key",
+  keyDeleted: "Local key files moved to Trash.",
+  keyDeleteHint:
+    "Moves the local files to Trash. Server access and copies in other applications are retained.",
+  keyDeleteHardwareHint:
+    "Deleting a hardware key here removes only its local handle and public file. The credential on the YubiKey is retained.",
+  keyChanged: "The key files have changed. Refresh the list and try again.",
+  keyDeleteFailed:
+    "Could not move the key files to Trash. They have not been permanently deleted. Check permissions and file locks.",
+  keyDeletePartial:
+    "Only some files were moved to Trash. Refresh the list and check Trash; you can restore the moved files there.",
   hardwareUnknown: "Device detection unavailable",
   hardwareAbsent: "No device detected",
   hardwareReady: "Connected and ready",
@@ -225,6 +236,17 @@ export const en = {
 export const ru: Record<keyof typeof en, string> = {
   theme: "Тема",
   copiedInline: "[СКОПИРОВАНО]",
+  deleteKey: "Удалить ключ",
+  keyDeleted: "Локальные файлы ключа перемещены в корзину.",
+  keyDeleteHint:
+    "Перемещает локальные файлы в корзину. Доступ на серверах и копии в других приложениях сохраняются.",
+  keyDeleteHardwareHint:
+    "Здесь удаляются только локальный файл-ссылка и публичный файл аппаратного ключа. Запись на YubiKey сохраняется.",
+  keyChanged: "Файлы ключа изменились. Обновите список и повторите действие.",
+  keyDeleteFailed:
+    "Не удалось переместить файлы ключа в корзину. Безвозвратное удаление не выполнялось. Проверьте права и блокировку файлов.",
+  keyDeletePartial:
+    "В корзину перемещена только часть файлов. Обновите список и проверьте корзину; перемещённые файлы можно восстановить оттуда.",
   hardwareUnknown: "Обнаружение устройства недоступно",
   hardwareAbsent: "Устройство не обнаружено",
   hardwareReady: "Подключён и готов",

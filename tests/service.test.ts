@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { KeyService, run } from "../src/main/service";
 async function isolated(
   action: (service: KeyService, directory: string) => Promise<void>,
@@ -152,4 +152,251 @@ test("scan blocks a linked SSH directory including Windows junctions", async () 
       process.platform === "win32" ? "junction" : "dir",
     );
     await assert.rejects(new KeyService(() => {}, link).scan(), /unsafePath/);
+  }));
+
+async function deletionFixture(service: KeyService, directory: string) {
+  await run("ssh-keygen", [
+    "-q",
+    "-t",
+    "ed25519",
+    "-N",
+    "",
+    "-f",
+    join(directory, "delete-test"),
+  ]);
+  return (await service.scan()).keys[0];
+}
+test("pending deletion blocks duplicate deletion and key generation until canceled", async () =>
+  isolated(async (service, directory) => {
+    const key = await deletionFixture(service, directory);
+    let enter!: () => void, release!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      enter = resolve;
+    });
+    const pending = service.deleteKey(
+      key.name,
+      key.fingerprint,
+      async () => {
+        enter();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return false;
+      },
+      async () => {
+        assert.fail();
+      },
+    );
+    await entered;
+    await assert.rejects(
+      service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => true,
+        async () => {
+          assert.fail();
+        },
+      ),
+      /operationBusy/,
+    );
+    await assert.rejects(
+      service.generate({
+        algorithm: "ed25519",
+        bits: 256,
+        name: "other",
+        comment: "",
+        passphrase: "",
+        resident: false,
+        verifyRequired: false,
+      }),
+      /operationBusy/,
+    );
+    release();
+    assert.equal(await pending, false);
+  }));
+test("deletion cancel preserves both files and never invokes Trash", async () =>
+  isolated(async (service, directory) => {
+    const key = await deletionFixture(service, directory);
+    const deleted = await service.deleteKey(
+      key.name,
+      key.fingerprint,
+      async (plan) => {
+        assert.deepEqual(plan.files, [key.path, `${key.path}.pub`]);
+        assert.equal(plan.hardware, false);
+        return false;
+      },
+      async () => {
+        assert.fail("Trash must not be called without confirmation");
+      },
+    );
+    assert.equal(deleted, false);
+    await fs.access(key.path);
+    await fs.access(`${key.path}.pub`);
+  }));
+test("confirmed deletion sends only the selected pair to an injected Trash mover", async () =>
+  isolated(async (service, directory) => {
+    const key = await deletionFixture(service, directory);
+    await fs.writeFile(join(directory, "config"), "# keep");
+    await fs.writeFile(join(directory, "authorized_keys"), "# keep");
+    const trash = join(directory, "recycle");
+    await fs.mkdir(trash);
+    assert.equal(
+      await service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => true,
+        async (path) => {
+          await fs.rename(path, join(trash, basename(path)));
+        },
+      ),
+      true,
+    );
+    await assert.rejects(fs.access(key.path));
+    await assert.rejects(fs.access(`${key.path}.pub`));
+    assert.deepEqual((await fs.readdir(trash)).sort(), [
+      key.name,
+      `${key.name}.pub`,
+    ]);
+    assert.equal(
+      await fs.readFile(join(directory, "config"), "utf8"),
+      "# keep",
+    );
+    assert.equal(
+      await fs.readFile(join(directory, "authorized_keys"), "utf8"),
+      "# keep",
+    );
+  }));
+test("deletion rejects stale fingerprints and files changed during confirmation", async () =>
+  isolated(async (service, directory) => {
+    const key = await deletionFixture(service, directory);
+    const neverTrash = async () => {
+      assert.fail("Changed files must not be trashed");
+    };
+    await assert.rejects(
+      service.deleteKey(key.name, "stale", async () => true, neverTrash),
+      /keyChanged/,
+    );
+    await assert.rejects(
+      service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => {
+          await fs.appendFile(key.path, "\n");
+          return true;
+        },
+        neverTrash,
+      ),
+      /keyChanged/,
+    );
+    await fs.access(key.path);
+    await fs.access(`${key.path}.pub`);
+  }));
+test("public-only deletion lists one file, rejects unsafe names and unrecognized private files", async () =>
+  isolated(async (service, directory) => {
+    const key = await deletionFixture(service, directory);
+    await fs.unlink(key.path);
+    assert.equal(
+      await service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async (plan) => {
+          assert.deepEqual(plan.files, [`${key.path}.pub`]);
+          return false;
+        },
+        async () => {
+          assert.fail();
+        },
+      ),
+      false,
+    );
+    for (const name of ["../outside", "config", "authorized_keys", "x/y"])
+      await assert.rejects(
+        service.deleteKey(
+          name,
+          key.fingerprint,
+          async () => true,
+          async () => {
+            assert.fail();
+          },
+        ),
+        /invalidName/,
+      );
+    await fs.writeFile(key.path, "unrelated document");
+    await assert.rejects(
+      service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => true,
+        async () => {
+          assert.fail();
+        },
+      ),
+      /invalidPrivateFormat/,
+    );
+  }));
+test("deletion refuses linked files and directory junctions before moving anything", async () =>
+  isolated(async (service, directory) => {
+    const key = await deletionFixture(service, directory);
+    await fs.link(key.path, join(directory, "other-link"));
+    await assert.rejects(
+      service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => true,
+        async () => {
+          assert.fail();
+        },
+      ),
+      /unsafePath/,
+    );
+    const link = join(directory, "linked-directory");
+    await fs.symlink(
+      directory,
+      link,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    await assert.rejects(
+      new KeyService(() => {}, link).deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => true,
+        async () => {
+          assert.fail();
+        },
+      ),
+      /unsafePath/,
+    );
+    await fs.unlink(link);
+  }));
+test("Trash failure never falls back to permanent deletion and partial failure is explicit", async () =>
+  isolated(async (service, directory) => {
+    const key = await deletionFixture(service, directory);
+    await assert.rejects(
+      service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => true,
+        async () => {
+          throw new Error("trash unavailable");
+        },
+      ),
+      /keyDeleteFailed/,
+    );
+    await fs.access(key.path);
+    await fs.access(`${key.path}.pub`);
+    let moved = 0;
+    await assert.rejects(
+      service.deleteKey(
+        key.name,
+        key.fingerprint,
+        async () => true,
+        async (path) => {
+          if (moved++) throw new Error("locked");
+          await fs.rename(path, join(directory, "recoverable-key"));
+        },
+      ),
+      /keyDeletePartial/,
+    );
+    await fs.access(join(directory, "recoverable-key"));
+    await fs.access(`${key.path}.pub`);
   }));

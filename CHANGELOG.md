@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9
+
+- Added local key deletion to the system Trash with native RU/EN confirmation listing exact files, stale-file protection, cancellation and explicit partial-failure handling. Hardware token credentials, server access and other applications' copies are retained.
+- Made the server-install clipboard command ASCII-only and decoded the public key as UTF-8 on the server, preserving Cyrillic/Unicode comments across terminal paste paths. Rejected terminal control characters in comments.
+
 ## 0.1.8
 
 - Bundled SHA256-pinned, Microsoft-signed OpenSSH 10.0.0.0p2 Preview key-generation utilities on Windows. This avoids OpenSSH 9.5's unconditional resident-overwrite prompt and uses the native Windows Security dialog without changing system OpenSSH.

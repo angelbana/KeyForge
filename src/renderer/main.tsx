@@ -389,7 +389,7 @@ function App() {
               ))}
             </select>
           </label>
-          <small>KeyForge 0.1.8</small>
+          <small>KeyForge 0.1.9</small>
         </div>
       </aside>
       <main>
@@ -676,6 +676,39 @@ function App() {
                           {t("repair")}
                         </button>
                       )}
+                      <div className="key-delete">
+                        <button
+                          className="danger delete-key"
+                          disabled={busy || !api}
+                          onClick={() =>
+                            void act(async () => {
+                              try {
+                                if (
+                                  await unwrap(
+                                    api!.deleteKey(
+                                      key.name,
+                                      key.fingerprint,
+                                      lang,
+                                    ),
+                                  )
+                                )
+                                  setNotice("keyDeleted");
+                              } finally {
+                                await refresh();
+                              }
+                            })
+                          }
+                        >
+                          {t("deleteKey")}
+                        </button>
+                        <p className="muted">
+                          {t(
+                            key.type.startsWith("sk-")
+                              ? "keyDeleteHardwareHint"
+                              : "keyDeleteHint",
+                          )}
+                        </p>
+                      </div>
                       <p className="boundary">{t("privateBoundary")}</p>
                     </section>
                   )}

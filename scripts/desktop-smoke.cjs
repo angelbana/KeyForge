@@ -1,5 +1,5 @@
 // Real Electron + OpenSSH checks, restricted to a new temporary SSH directory.
-const { app, BrowserWindow, ipcMain, clipboard } = require("electron");
+const { app, BrowserWindow, ipcMain, clipboard, shell } = require("electron");
 const fs = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const path = require("node:path");
@@ -183,6 +183,8 @@ app
       /operationCancelled/,
     );
     checks.push("interactive prompt cancellation");
+    let deleteApproval = false,
+      deletionPlan;
     const actions = {
       scan: () => service.scan(),
       capabilities: () => service.capabilities(),
@@ -206,6 +208,16 @@ app
       cancel: () => service.interactive.cancel(),
       answerPrompt: (id, answer) => service.interactive.answer(id, answer),
       repairPermissions: (name) => service.repairPermissions(name),
+      deleteKey: (name, fingerprint) =>
+        service.deleteKey(
+          name,
+          fingerprint,
+          async (plan) => {
+            deletionPlan = plan;
+            return deleteApproval;
+          },
+          (path) => shell.trashItem(path),
+        ),
       chooseTarget: () => null,
     };
     for (const [name, action] of Object.entries(actions))
@@ -259,7 +271,7 @@ app
     );
     stage = "preload and clipboard";
     assert.equal(await evaluate("typeof window.require"), "undefined");
-    assert.equal(await evaluate("Object.keys(window.keyforge).length"), 20);
+    assert.equal(await evaluate("Object.keys(window.keyforge).length"), 21);
     assert.equal(
       await evaluate("document.querySelector('.key-detail .primary').disabled"),
       false,
@@ -568,6 +580,83 @@ app
     assert.equal(errors, 0);
     checks.push(
       "sandboxed preload; key explorer; public clipboard; both languages; all four tabs",
+    );
+    stage =
+      "local deletion UI and real OS Trash (synthetic public-only fixture)";
+    const field = (value) => {
+      const bytes = Buffer.from(value),
+        length = Buffer.alloc(4);
+      length.writeUInt32BE(bytes.length);
+      return Buffer.concat([length, bytes]);
+    };
+    const hardwareType = "sk-ssh-ed25519@openssh.com";
+    const publicFixture = `${hardwareType} ${Buffer.concat([field(hardwareType), field(randomBytes(32)), field("ssh:trash-test")]).toString("base64")} disposable-fixture`;
+    const deletionPath = path.join(directory, "trash-smoke.pub");
+    await fs.writeFile(deletionPath, publicFixture);
+    await evaluate("document.querySelectorAll('nav button')[0].click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate("document.querySelector('main header button').click()");
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if (
+        await evaluate(
+          "document.querySelectorAll('.key-item').length === 5 && !document.querySelector('.delete-key').disabled",
+        )
+      )
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await evaluate(
+      "Array.from(document.querySelectorAll('.key-item')).find(button => button.querySelector('strong').textContent === 'trash-smoke').click()",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.ok(
+      await evaluate(
+        "document.querySelector('.key-delete').textContent.includes('YubiKey')",
+      ),
+    );
+    await evaluate("document.querySelector('.delete-key').click()");
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if (await evaluate("!document.querySelector('.delete-key').disabled"))
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await fs.access(deletionPath);
+    assert.deepEqual(deletionPlan.files, [deletionPath]);
+    assert.equal(deletionPlan.hardware, true);
+    await evaluate(
+      "document.querySelector('.language select').value = 'ru'; document.querySelector('.language select').dispatchEvent(new Event('change', {bubbles:true}));",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate(
+      "document.querySelector('.key-delete').scrollIntoView({block:'center'})",
+    );
+    await fs.writeFile(
+      path.join(reportDirectory, "keyforge-delete-ru.png"),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    deleteApproval = true;
+    await evaluate("document.querySelector('.delete-key').click()");
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if (
+        await evaluate(
+          "document.querySelectorAll('.key-item').length === 4 && !!document.querySelector('.alert.success')",
+        )
+      )
+        break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await assert.rejects(fs.access(deletionPath), { code: "ENOENT" });
+    assert.equal(
+      await evaluate("document.querySelectorAll('.key-item').length"),
+      4,
+    );
+    assert.ok(
+      await evaluate(
+        "document.querySelector('.alert.success').textContent.includes('корзину')",
+      ),
+    );
+    checks.push(
+      "delete button, cancellation and list refresh; simulated confirmation, real OS Trash of synthetic public-only fixture; hardware handle warning shown, no user key or token changed",
     );
     await fs.writeFile(
       path.join(reportDirectory, "desktop-smoke.json"),

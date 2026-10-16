@@ -1,9 +1,18 @@
-import { app, BrowserWindow, ipcMain, clipboard, Menu, dialog } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  clipboard,
+  Menu,
+  dialog,
+  shell,
+} from "electron";
 import { join, dirname, basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { KeyService } from "./service";
 import type { Api, GenerateRequest, Result } from "../shared/types";
 import { validateName } from "./commands";
+import { deletionMessages } from "../shared/deletion";
 
 let window: BrowserWindow | undefined;
 const rendererPath = join(__dirname, "../renderer/index.html");
@@ -44,6 +53,9 @@ const knownErrors = new Set([
   "outputLimit",
   "invalidPrompt",
   "keyExists",
+  "keyChanged",
+  "keyDeleteFailed",
+  "keyDeletePartial",
   "invalidPrivateFormat",
   "permissionsFailed",
   "invalidConfig",
@@ -89,6 +101,34 @@ app.whenReady().then(() => {
   handle("copyPublic", async (name) =>
     clipboard.writeText(await service.publicText(name)),
   );
+  handle("deleteKey", (name, fingerprint, language) => {
+    if (language !== "ru" && language !== "en") throw new Error("invalidInput");
+    const copy = deletionMessages[language];
+    return service.deleteKey(
+      name,
+      fingerprint,
+      async (key) => {
+        const result = await dialog.showMessageBox(window!, {
+          type: "warning",
+          title: "KeyForge",
+          message: copy.title,
+          detail: [
+            key.name,
+            ...key.files,
+            "",
+            copy.detail,
+            ...(key.hardware ? ["", copy.hardware] : []),
+          ].join("\n"),
+          buttons: [copy.cancel, copy.confirm],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+        return result.response === 1;
+      },
+      (path) => shell.trashItem(path),
+    );
+  });
   handle("serverCommand", (name, user) => service.serverCommand(name, user));
   handle("copyServerCommand", async (name, user) => {
     const command = await service.serverCommand(name, user);

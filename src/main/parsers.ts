@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
 import type { HostEntry } from "../shared/types";
+export function hasTerminalControls(value: string): boolean {
+  return Array.from(value).some((char) => {
+    const code = char.charCodeAt(0);
+    return code < 32 || (code >= 127 && code <= 159);
+  });
+}
 
 class Reader {
   offset = 0;
@@ -23,6 +29,7 @@ export function parsePublicKey(text: string) {
     );
   if (!match) throw new Error("invalidPublicKey");
   const [, type, encoded, comment = ""] = match;
+  if (hasTerminalControls(comment)) throw new Error("invalidPublicKey");
   const data = Buffer.from(encoded, "base64");
   if (data.toString("base64").replace(/=+$/, "") !== encoded.replace(/=+$/, ""))
     throw new Error("invalidPublicKey");

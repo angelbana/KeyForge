@@ -33,6 +33,10 @@ app
     );
     assert.equal(result.ok, true);
     assert.equal(result.hasDirectory, true);
+    const unsafeDeletion = await window.webContents.executeJavaScript(
+      "window.keyforge.deleteKey('../outside', 'invalid', 'ru')",
+    );
+    assert.deepEqual(unsafeDeletion, { ok: false, error: "invalidName" });
     if (process.platform === "win32") {
       const packagedRequire = createRequire(main);
       const pty = packagedRequire("node-pty");
@@ -73,6 +77,7 @@ app
         "production renderer and sandbox loaded",
         "production IPC sender validation accepted the main frame",
         "default SSH directory read without mutation",
+        "production deletion IPC rejects unsafe paths before confirmation or file operations",
         ...(process.platform === "win32"
           ? [
               "packaged Microsoft key generator creates an encrypted software key in an isolated directory",

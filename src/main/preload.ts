@@ -13,6 +13,8 @@ const api: Api = {
     return () => ipcRenderer.removeListener("keyforge:hardwareState", listener);
   },
   copyPublic: (name) => ipcRenderer.invoke("keyforge:copyPublic", name),
+  deleteKey: (name, fingerprint, language) =>
+    ipcRenderer.invoke("keyforge:deleteKey", name, fingerprint, language),
   serverCommand: (name, user) =>
     ipcRenderer.invoke("keyforge:serverCommand", name, user),
   copyServerCommand: (name, user) =>

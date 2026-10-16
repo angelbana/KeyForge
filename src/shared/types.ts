@@ -17,6 +17,11 @@ export interface KeyScan {
   keys: KeyInfo[];
   warnings: string[];
 }
+export interface KeyDeletion {
+  name: string;
+  files: string[];
+  hardware: boolean;
+}
 export interface GenerateRequest {
   algorithm: Algorithm;
   bits: number;
@@ -63,6 +68,11 @@ export interface Api {
   scan(): Promise<Result<KeyScan>>;
   capabilities(): Promise<Result<Capabilities>>;
   copyPublic(name: string): Promise<Result<void>>;
+  deleteKey(
+    name: string,
+    fingerprint: string,
+    language: "ru" | "en",
+  ): Promise<Result<boolean>>;
   serverCommand(name: string, user: string): Promise<Result<string>>;
   copyServerCommand(name: string, user: string): Promise<Result<string>>;
   copySnippet(

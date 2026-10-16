@@ -18,6 +18,7 @@ import type {
   ConfigDocument,
   GenerateRequest,
   KeyScan,
+  KeyDeletion,
   Prompt,
   Server,
   HardwareState,
@@ -95,6 +96,7 @@ export class KeyService {
   readonly interactive: InteractiveRunner;
   private configSaving = false;
   private generating = false;
+  private deleting = false;
   constructor(
     notify: (prompt: Prompt) => void,
     directory = join(homedir(), ".ssh"),
@@ -208,6 +210,86 @@ export class KeyService {
     parsePublicKey(text);
     return text;
   }
+  async deleteKey(
+    name: string,
+    fingerprint: string,
+    confirm: (key: KeyDeletion) => Promise<boolean>,
+    moveToTrash: (path: string) => Promise<void>,
+  ): Promise<boolean> {
+    if (this.generating || this.deleting) throw new Error("operationBusy");
+    validateName(name);
+    if (typeof fingerprint !== "string") throw new Error("invalidInput");
+    this.deleting = true;
+    try {
+      const snapshot = async () => {
+        const directory = await fs.lstat(this.directory);
+        if (!directory.isDirectory() || directory.isSymbolicLink())
+          throw new Error("unsafePath");
+        const publicText = await this.publicText(name);
+        const key = parsePublicKey(publicText);
+        if (key.fingerprint !== fingerprint) throw new Error("keyChanged");
+        const files: string[] = [];
+        let privateRevision = "";
+        try {
+          const privateData = await this.read(name);
+          try {
+            if (privateEncryption(privateData.toString("utf8")) === null)
+              throw new Error("invalidPrivateFormat");
+            privateRevision = createHash("sha256")
+              .update(privateData)
+              .digest("hex");
+            files.push(await this.safeFile(name));
+          } finally {
+            privateData.fill(0);
+          }
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+        files.push(await this.safeFile(`${name}.pub`));
+        const metadata = await Promise.all(
+          files.map(async (path) => {
+            const stat = await fs.lstat(path);
+            return [
+              path,
+              stat.dev,
+              stat.ino,
+              stat.size,
+              stat.mtimeMs,
+              stat.ctimeMs,
+              stat.mode,
+              stat.nlink,
+            ];
+          }),
+        );
+        return {
+          key: { name, files, hardware: key.type.startsWith("sk-") },
+          revision: JSON.stringify([
+            directory.dev,
+            directory.ino,
+            publicText,
+            privateRevision,
+            metadata,
+          ]),
+        };
+      };
+      const before = await snapshot();
+      if (!(await confirm(before.key))) return false;
+      const after = await snapshot();
+      if (before.revision !== after.revision) throw new Error("keyChanged");
+      let moved = 0;
+      for (const path of after.key.files) {
+        try {
+          await moveToTrash(path);
+          moved++;
+        } catch {
+          throw new Error(moved ? "keyDeletePartial" : "keyDeleteFailed");
+        }
+      }
+      return true;
+    } finally {
+      this.deleting = false;
+    }
+  }
   async capabilities(): Promise<Capabilities> {
     const probe = async (tool: string, args: string[]) => {
       try {
@@ -284,7 +366,7 @@ export class KeyService {
     };
   }
   async generate(request: GenerateRequest): Promise<void> {
-    if (this.generating) throw new Error("operationBusy");
+    if (this.generating || this.deleting) throw new Error("operationBusy");
     const args = generationArgs(request, join(this.directory, request.name));
     this.generating = true;
     let staging: string | undefined;
