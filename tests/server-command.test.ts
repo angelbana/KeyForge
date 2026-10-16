@@ -39,7 +39,7 @@ test(
       const first = publicKey("existing");
       const key = publicKey("ключ от кбк 🔑");
       await fs.writeFile(join(ssh, "authorized_keys"), first);
-      await fs.writeFile(join(ssh, "test.pub"), `${key}\r\n\r\n`);
+      await fs.writeFile(join(ssh, "test.pub"), `\uFEFF${key}\r\n\r\n`);
       const command = deploymentSnippets({
         host: "example.invalid",
         user: "test",

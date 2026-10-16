@@ -85,7 +85,16 @@ File.WriteAllText(output+"stdin", Console.In.ReadToEnd(), new UTF8Encoding(false
         );
         assert.ok(remote.includes("printf '%s\\n' \"$key\""));
         const input = await fs.readFile(`${capture}stdin`, "utf8");
-        assert.equal(input.replace(/\r\n/g, "\n").trimEnd(), key);
+        // Some Windows runtimes prefix native stdin with a UTF-8 BOM; the remote
+        // installer must remove it rather than treating it as part of the key type.
+        assert.equal(
+          input
+            .replace(/^\uFEFF/, "")
+            .replace(/\r\n/g, "\n")
+            .trimEnd(),
+          key,
+          `UTF-8 stdin from ${executable}`,
+        );
         const destination = join(directory, "server").replace(/\\/g, "/");
         const isolated = remote.replaceAll("$HOME/.ssh", `${destination}/.ssh`);
         assert.ok(

@@ -5,7 +5,7 @@
 - Preserved UTF-8 across process-output chunks and rejected malformed multiline public keys and terminal control characters in passphrases and authentication answers.
 - Recognized PIN prompts across split terminal escape sequences. Kept rejected prompts open for retry and protected consecutive prompts from stale acknowledgements.
 - Made cancellation effective during key-generation preparation and shared the mutation guard across custom target services, deletion, permission repair and deployment.
-- Unified server-install commands: normalized CRLF, added missing line separators, rejected multiple input keys and preserved existing restrictions. Duplicate detection no longer treats another key's comment as an installed credential.
+- Unified server-install commands: removed UTF-8 BOM, normalized CRLF, added missing line separators, rejected multiple input keys and preserved existing restrictions. Duplicate detection no longer treats another key's comment as an installed credential.
 - Preserved remote shell quotes through Windows PowerShell's legacy native argument handling; checked UTF-8 transport through both Windows PowerShell and PowerShell 7 when available.
 - Retained approved custom paths after a failed generation attempt and cleared stale configuration results when their inputs change.
 - Skipped unchanged runtime files when updating the unpacked build, avoiding needless writes to locked Windows DLLs; rejected nested destination links.

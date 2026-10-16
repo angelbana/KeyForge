@@ -77,6 +77,8 @@ const sh = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
 const ps = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const installHeader = `set -eu
 umask 077
+LC_ALL=C
+export LC_ALL
 command -v awk >/dev/null
 command -v tail >/dev/null`;
 // Shared by clipboard commands and SSH stdin transport. Never rewrite existing entries.
@@ -127,7 +129,7 @@ if [ "$installed" != 1 ]; then
   fi
   printf '%s\n' "$key" >> "$authorized"
 fi`;
-const normalizePublicStdin = String.raw`{ sub(/\r$/, ""); if ($0=="") next; check=$0; gsub(/\t/, "", check); if (check ~ /[[:cntrl:]]/ || ++lines>1) exit 1; print } END {if (lines!=1) exit 1}`;
+const normalizePublicStdin = String.raw`{ if (NR==1) sub(/^\357\273\277/, ""); sub(/\r$/, ""); if ($0=="") next; check=$0; gsub(/\t/, "", check); if (check ~ /[[:cntrl:]]/ || ++lines>1) exit 1; print } END {if (lines!=1) exit 1}`;
 const remoteInstall = `${installHeader}
 key=$(awk ${sh(normalizePublicStdin)})
 ${installBody}`;
