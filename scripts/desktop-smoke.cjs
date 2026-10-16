@@ -110,7 +110,7 @@ app
     checks.push(
       "hardware enrollment failures return safe actionable codes; intentionally missing provider, no physical token used",
     );
-    let passphrase = randomBytes(32).toString("hex");
+    let passphrase = "фраза🔒" + randomBytes(32).toString("hex");
     for (const [algorithm, bits] of [
       ["ed25519", 256],
       ["ecdsa", 384],
@@ -220,10 +220,10 @@ app
         ),
       chooseTarget: () => null,
     };
-    for (const [name, action] of Object.entries(actions))
+    for (const name of Object.keys(actions))
       ipcMain.handle(`keyforge:${name}`, async (_event, ...args) => {
         try {
-          return { ok: true, value: await action(...args) };
+          return { ok: true, value: await actions[name](...args) };
         } catch {
           return { ok: false, error: "operationFailed" };
         }
@@ -268,6 +268,52 @@ app
     assert.equal(
       await evaluate("document.querySelectorAll('.key-item').length"),
       4,
+    );
+    stage =
+      "prompt retry and consecutive prompt replay (no real authentication)";
+    const answerPrompt = actions.answerPrompt;
+    try {
+      actions.answerPrompt = async () => {
+        throw new Error("invalidPrompt");
+      };
+      window.webContents.send("keyforge:prompt", {
+        id: "rejected-answer",
+        kind: "password",
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await evaluate("document.querySelector('.modal').requestSubmit()");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      stage = "rejected prompt remains open";
+      assert.equal(
+        await evaluate("!!document.querySelector('.modal')"),
+        true,
+        "Rejected answers must keep the prompt open for retry",
+      );
+      actions.answerPrompt = async () => {
+        window.webContents.send("keyforge:prompt", {
+          id: "next-prompt",
+          kind: "pin",
+        });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      };
+      await evaluate("document.querySelector('.modal').requestSubmit()");
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      stage = "consecutive PIN prompt survives previous answer acknowledgement";
+      assert.ok(
+        ["Enter the authenticator PIN", "Введите PIN токена"].includes(
+          await evaluate(
+            "document.querySelector('#prompt-title')?.textContent",
+          ),
+        ),
+      );
+      await evaluate(
+        "document.querySelector('.modal .actions button:last-child').click()",
+      );
+    } finally {
+      actions.answerPrompt = answerPrompt;
+    }
+    checks.push(
+      "replayed rejected and consecutive authentication prompts remain usable; no real credentials sent",
     );
     stage = "preload and clipboard";
     assert.equal(await evaluate("typeof window.require"), "undefined");

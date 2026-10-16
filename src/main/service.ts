@@ -3,6 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import { join, resolve, delimiter } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 import {
   generationArgs,
   validateName,
@@ -38,6 +39,7 @@ export async function run(
     let output = "",
       size = 0,
       settled = false;
+    const decoder = new StringDecoder("utf8");
     const fail = (code: string) => {
       if (!settled) {
         settled = true;
@@ -50,7 +52,7 @@ export async function run(
     child.stdout.on("data", (data: Buffer) => {
       size += data.length;
       if (size > 1_048_576) fail("outputLimit");
-      else output += data.toString();
+      else output += decoder.write(data);
     });
     child.stderr.resume();
     child.on("error", () => fail("toolUnavailable"));
@@ -58,7 +60,7 @@ export async function run(
       if (!settled) {
         settled = true;
         clearTimeout(timer);
-        if (code === 0) resolveResult(output);
+        if (code === 0) resolveResult(output + decoder.end());
         else reject(new Error("operationFailed"));
       }
     });
@@ -66,6 +68,8 @@ export async function run(
 }
 const revision = (text: string) =>
   createHash("sha256").update(text).digest("hex");
+// Custom target directories share the same native runner and mutation boundary.
+const keyMutations = new WeakSet<InteractiveRunner>();
 async function restrictWindows(
   path: string,
   directory: boolean,
@@ -95,8 +99,6 @@ export class KeyService {
   readonly directory: string;
   readonly interactive: InteractiveRunner;
   private configSaving = false;
-  private generating = false;
-  private deleting = false;
   constructor(
     notify: (prompt: Prompt) => void,
     directory = join(homedir(), ".ssh"),
@@ -216,10 +218,11 @@ export class KeyService {
     confirm: (key: KeyDeletion) => Promise<boolean>,
     moveToTrash: (path: string) => Promise<void>,
   ): Promise<boolean> {
-    if (this.generating || this.deleting) throw new Error("operationBusy");
     validateName(name);
     if (typeof fingerprint !== "string") throw new Error("invalidInput");
-    this.deleting = true;
+    if (keyMutations.has(this.interactive) || this.interactive.busy)
+      throw new Error("operationBusy");
+    keyMutations.add(this.interactive);
     try {
       const snapshot = async () => {
         const directory = await fs.lstat(this.directory);
@@ -287,7 +290,7 @@ export class KeyService {
       }
       return true;
     } finally {
-      this.deleting = false;
+      keyMutations.delete(this.interactive);
     }
   }
   async capabilities(): Promise<Capabilities> {
@@ -366,12 +369,19 @@ export class KeyService {
     };
   }
   async generate(request: GenerateRequest): Promise<void> {
-    if (this.generating || this.deleting) throw new Error("operationBusy");
+    if (keyMutations.has(this.interactive) || this.interactive.busy)
+      throw new Error("operationBusy");
     const args = generationArgs(request, join(this.directory, request.name));
-    this.generating = true;
+    const cancellation = this.interactive.cancellationVersion;
+    const checkCancellation = () => {
+      if (cancellation !== this.interactive.cancellationVersion)
+        throw new Error("operationCancelled");
+    };
+    keyMutations.add(this.interactive);
     let staging: string | undefined;
     try {
       await this.ensureDirectory();
+      checkCancellation();
       if (process.platform === "win32")
         await restrictWindows(this.directory, true);
       else await fs.chmod(this.directory, 0o700);
@@ -392,6 +402,7 @@ export class KeyService {
       let passphrase = request.passphrase;
       request.passphrase = "";
       try {
+        checkCancellation();
         await this.interactive.run("ssh-keygen", args, staging, passphrase);
       } finally {
         passphrase = "";
@@ -406,6 +417,7 @@ export class KeyService {
         privateData.fill(0);
       }
       parsePublicKey(await fs.readFile(`${tempKey}.pub`, "utf8"));
+      checkCancellation();
       // COPYFILE_EXCL prevents replacement of a key created concurrently.
       await fs.copyFile(
         tempKey,
@@ -422,13 +434,24 @@ export class KeyService {
         await fs.unlink(join(this.directory, request.name));
         throw new Error("keyExists");
       }
-      await this.repairPermissions(request.name);
+      await this.restrictPair(request.name);
     } finally {
-      this.generating = false;
+      request.passphrase = "";
+      keyMutations.delete(this.interactive);
       if (staging) await fs.rm(staging, { recursive: true, force: true });
     }
   }
   async repairPermissions(name: string): Promise<void> {
+    if (keyMutations.has(this.interactive) || this.interactive.busy)
+      throw new Error("operationBusy");
+    keyMutations.add(this.interactive);
+    try {
+      await this.restrictPair(name);
+    } finally {
+      keyMutations.delete(this.interactive);
+    }
+  }
+  private async restrictPair(name: string): Promise<void> {
     validateName(name);
     await this.ensureDirectory();
     const privatePath = await this.safeFile(name),
@@ -539,18 +562,28 @@ export class KeyService {
   }
   async deploy(server: Server): Promise<void> {
     validateServer(server);
-    await this.publicText(server.keyName);
     if (process.platform === "win32") throw new Error("copyIdUnavailable");
-    await this.interactive.run(
-      "ssh-copy-id",
-      [
-        "-i",
-        join(this.directory, `${server.keyName}.pub`),
-        "-p",
-        String(server.port),
-        `${server.user}@${server.host}`,
-      ],
-      this.directory,
-    );
+    if (keyMutations.has(this.interactive) || this.interactive.busy)
+      throw new Error("operationBusy");
+    keyMutations.add(this.interactive);
+    const cancellation = this.interactive.cancellationVersion;
+    try {
+      await this.publicText(server.keyName);
+      if (cancellation !== this.interactive.cancellationVersion)
+        throw new Error("operationCancelled");
+      await this.interactive.run(
+        "ssh-copy-id",
+        [
+          "-i",
+          join(this.directory, `${server.keyName}.pub`),
+          "-p",
+          String(server.port),
+          `${server.user}@${server.host}`,
+        ],
+        this.directory,
+      );
+    } finally {
+      keyMutations.delete(this.interactive);
+    }
   }
 }

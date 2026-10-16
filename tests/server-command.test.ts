@@ -5,7 +5,7 @@ import { promises as fs, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { serverInstallCommand } from "../src/main/commands";
+import { deploymentSnippets, serverInstallCommand } from "../src/main/commands";
 
 function publicKey(comment = "test-local") {
   const { publicKey } = generateKeyPairSync("ed25519");
@@ -28,6 +28,94 @@ const shell =
 const shellOptions = {
   skip: !existsSync(shell) ? "POSIX shell unavailable" : false,
 };
+test(
+  "SSH deployment normalizes CRLF, separates existing keys and is idempotent",
+  shellOptions,
+  async () => {
+    const directory = await fs.mkdtemp(join(tmpdir(), "keyforge-pipe-"));
+    try {
+      const ssh = join(directory, ".ssh");
+      await fs.mkdir(ssh);
+      const first = publicKey("existing");
+      const key = publicKey("ключ от кбк 🔑");
+      await fs.writeFile(join(ssh, "authorized_keys"), first);
+      await fs.writeFile(join(ssh, "test.pub"), `${key}\r\n\r\n`);
+      const command = deploymentSnippets({
+        host: "example.invalid",
+        user: "test",
+        port: 22,
+        keyName: "test",
+      }).posix;
+      // Only SSH transport is replaced: the actual generated remote command and stdin run in sh.
+      const destination = `${directory.replace(/\\/g, "/")}/.ssh`;
+      const isolatedCommand = command
+        .replaceAll("$HOME/.ssh", destination)
+        .replaceAll("~/.ssh", destination);
+      assert.ok(
+        !isolatedCommand.includes("~/.ssh") &&
+          !isolatedCommand.includes("$HOME/.ssh"),
+      );
+      const execute = () =>
+        spawnSync(
+          shell,
+          [
+            "-c",
+            `ssh() { for arg do remote=$arg; done; sh -c "$remote"; }\n${isolatedCommand}`,
+          ],
+          { encoding: "utf8", timeout: 10000 },
+        );
+      assert.equal(execute().status, 0);
+      assert.equal(
+        await fs.readFile(join(ssh, "authorized_keys"), "utf8"),
+        `${first}\n${key}\n`,
+      );
+      assert.equal(execute().status, 0);
+      assert.equal(
+        await fs.readFile(join(ssh, "authorized_keys"), "utf8"),
+        `${first}\n${key}\n`,
+      );
+      await fs.writeFile(
+        join(ssh, "test.pub"),
+        `${key}\n${publicKey("extra")}\n`,
+      );
+      assert.notEqual(execute().status, 0);
+      assert.equal(
+        await fs.readFile(join(ssh, "authorized_keys"), "utf8"),
+        `${first}\n${key}\n`,
+      );
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+test(
+  "deduplication never mistakes another key's comment for an authorized key",
+  shellOptions,
+  async () => {
+    const directory = await fs.mkdtemp(join(tmpdir(), "keyforge-comment-"));
+    try {
+      await fs.mkdir(join(directory, ".ssh"));
+      const key = publicKey("new");
+      const existing = publicKey(`comment quoting ${key}`);
+      const authorized = join(directory, ".ssh", "authorized_keys");
+      await fs.writeFile(authorized, `${existing}\n`);
+      const command = serverInstallCommand(key, "").replace(
+        "$HOME/.ssh",
+        `${directory.replace(/\\/g, "/")}/.ssh`,
+      );
+      assert.equal(
+        spawnSync(shell, ["-c", command], { timeout: 10000 }).status,
+        0,
+      );
+      assert.equal(
+        await fs.readFile(authorized, "utf8"),
+        `${existing}\n${key}\n`,
+      );
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
+  },
+);
 test("server command rejects usernames that inject commands or sudo options", () => {
   const key = publicKey();
   for (const user of [

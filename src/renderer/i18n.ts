@@ -151,7 +151,7 @@ export const en = {
   deploy: "Install with ssh-copy-id",
   deployed: "Public key installed",
   manualNote:
-    "Review the destination before running. Manual commands append the public key and may create duplicate entries.",
+    "Review the destination before running. Commands preserve existing entries and skip a key already installed.",
   copyCommand: "Copy command",
   commandCopied: "Command copied",
   configTitle: "SSH configuration",
@@ -386,7 +386,7 @@ export const ru: Record<keyof typeof en, string> = {
   deploy: "Установить через ssh-copy-id",
   deployed: "Публичный ключ установлен",
   manualNote:
-    "Проверьте адрес перед запуском. Ручные команды добавляют публичный ключ и могут создавать дубликаты.",
+    "Проверьте адрес перед запуском. Команды сохраняют существующие записи и пропускают уже установленный ключ.",
   copyCommand: "Копировать команду",
   commandCopied: "Команда скопирована",
   configTitle: "Конфигурация SSH",

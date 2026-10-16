@@ -22,11 +22,15 @@ class Reader {
   }
 }
 export function parsePublicKey(text: string) {
-  const match = text
-    .trim()
-    .match(
-      /^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)\s+([A-Za-z0-9+/]+={0,2})(?:\s+([^\r\n]*))?$/,
-    );
+  const line = text
+    .replace(/^\uFEFF/, "")
+    .replace(/\r?\n$/, "")
+    .replace(/^[ \t]+|[ \t]+$/g, "");
+  if (hasTerminalControls(line.replace(/\t/g, "")))
+    throw new Error("invalidPublicKey");
+  const match = line.match(
+    /^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)[ \t]+([A-Za-z0-9+/]+={0,2})(?:[ \t]+([^\r\n]*))?$/,
+  );
   if (!match) throw new Error("invalidPublicKey");
   const [, type, encoded, comment = ""] = match;
   if (hasTerminalControls(comment)) throw new Error("invalidPublicKey");

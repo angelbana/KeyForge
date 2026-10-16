@@ -1,9 +1,71 @@
-import { test } from "node:test";
+import { test, mock } from "node:test";
 import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { KeyService, run } from "../src/main/service";
+import { InteractiveRunner } from "../src/main/interactive";
+
+test("process output preserves UTF-8 split across writes", async () => {
+  const output = await run(process.execPath, [
+    "-e",
+    "process.stdout.write(Buffer.from([0xd0]));setTimeout(()=>process.stdout.write(Buffer.from([0xba])),100)",
+  ]);
+  assert.equal(output, "к");
+});
+
+test("cancellation during directory preparation prevents key generation", async () => {
+  const directory = await fs.mkdtemp(join(tmpdir(), "keyforge-cancel-"));
+  const runner = new InteractiveRunner(() => {});
+  const service = new KeyService(() => {}, directory, runner);
+  let release!: () => void;
+  let entered!: () => void;
+  const preparing = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const mkdir = fs.mkdir.bind(fs);
+  const mkdirMock = mock.method(
+    fs,
+    "mkdir",
+    async (...args: Parameters<typeof fs.mkdir>) => {
+      if (args[0] === directory) {
+        entered();
+        await gate;
+      }
+      return mkdir(...args);
+    },
+  );
+  const runMock = mock.method(runner, "run", async () => {
+    throw new Error("nativeStarted");
+  });
+  const request = {
+    algorithm: "ed25519" as const,
+    bits: 256,
+    name: "cancelled",
+    comment: "",
+    passphrase: "",
+    resident: false,
+    verifyRequired: false,
+  };
+  try {
+    const result = service.generate(request);
+    const rejected = assert.rejects(result, /operationCancelled/);
+    await preparing;
+    runner.cancel();
+    release();
+    await rejected;
+    assert.equal(runMock.mock.callCount(), 0);
+    assert.deepEqual(await fs.readdir(directory), []);
+  } finally {
+    release();
+    mkdirMock.mock.restore();
+    runMock.mock.restore();
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
 async function isolated(
   action: (service: KeyService, directory: string) => Promise<void>,
 ) {
@@ -200,7 +262,7 @@ test("pending deletion blocks duplicate deletion and key generation until cancel
       /operationBusy/,
     );
     await assert.rejects(
-      service.generate({
+      new KeyService(() => {}, directory, service.interactive).generate({
         algorithm: "ed25519",
         bits: 256,
         name: "other",

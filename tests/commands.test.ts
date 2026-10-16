@@ -42,6 +42,17 @@ test("generation refuses control characters in key comments", () => {
       /invalidInput/,
     );
 });
+test("generation refuses passphrases containing terminal commands", () => {
+  for (const control of ["\x03", "\x04", "\x08", "\t", "\x1b", "\x7f", "\x9b"])
+    assert.throws(
+      () =>
+        generationArgs(
+          { ...request, passphrase: `before${control}after` },
+          "/tmp/key",
+        ),
+      /invalidInput/,
+    );
+});
 test("RSA rejects 2048 and unsupported sizes", () => {
   for (const bits of [2048, 1024, 0, 4097])
     assert.throws(

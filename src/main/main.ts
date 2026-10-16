@@ -153,7 +153,7 @@ app.whenReady().then(() => {
     if (request.targetPath) {
       if (
         typeof request.targetPath !== "string" ||
-        !selectedPaths.delete(request.targetPath)
+        !selectedPaths.has(request.targetPath)
       )
         throw new Error("invalidPath");
       const targetService = new KeyService(

@@ -143,6 +143,26 @@ function App() {
   }>();
   const [prompt, setPrompt] = useState<Prompt>();
   const [answer, setAnswer] = useState("");
+  const [answeringPrompt, setAnsweringPrompt] = useState<string>();
+  const answeringRef = useRef<string | undefined>(undefined);
+  const [promptError, setPromptError] = useState(false);
+  async function respondToPrompt(value: string) {
+    if (!api || !prompt || answeringRef.current === prompt.id) return;
+    const id = prompt.id;
+    answeringRef.current = id;
+    setAnsweringPrompt(id);
+    setAnswer("");
+    setPromptError(false);
+    try {
+      await unwrap(api.answerPrompt(id, value));
+      setPrompt((current) => (current?.id === id ? undefined : current));
+    } catch {
+      setPromptError(true);
+    } finally {
+      if (answeringRef.current === id) answeringRef.current = undefined;
+      setAnsweringPrompt((current) => (current === id ? undefined : current));
+    }
+  }
   useEffect(() => {
     document.documentElement.lang = lang;
     try {
@@ -179,6 +199,7 @@ function App() {
     const value = await unwrap(api.config());
     setConfig(value);
     setConfigText(value.text);
+    setResolved("");
   }
   async function act(action: () => Promise<unknown>, success?: TextKey) {
     setBusy(true);
@@ -208,6 +229,7 @@ function App() {
     });
     const stopPrompt = api.onPrompt((value) => {
       setAnswer("");
+      setPromptError(false);
       setPrompt(value);
     });
     const stopHardware = api.onHardwareState(setHardwareState);
@@ -335,10 +357,11 @@ function App() {
       identityFile: `~/.ssh/${server.keyName}`,
     });
     setConfigText((old) => `${text}\n${old}`); // Specific hosts precede wildcard defaults; preserve every existing line.
+    setResolved("");
   }
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className="sidebar" inert={!!prompt}>
         <div className="brand">
           <span className="brand-mark">
             <Icon type="brand" />
@@ -389,10 +412,10 @@ function App() {
               ))}
             </select>
           </label>
-          <small>KeyForge 0.1.9</small>
+          <small>KeyForge 0.1.10</small>
         </div>
       </aside>
-      <main>
+      <main inert={!!prompt}>
         <header className="topbar">
           <div>
             <span className="section-icon">
@@ -1086,6 +1109,7 @@ function App() {
                     {t("host")}
                     <input
                       placeholder="server.example.com"
+                      disabled={busy}
                       value={server.host}
                       onChange={(event) => {
                         setSnippets(undefined);
@@ -1100,6 +1124,7 @@ function App() {
                     {t("user")}
                     <input
                       value={server.user}
+                      disabled={busy}
                       onChange={(event) => {
                         setSnippets(undefined);
                         setServer((old) => ({
@@ -1116,6 +1141,7 @@ function App() {
                       min="1"
                       max="65535"
                       value={server.port}
+                      disabled={busy}
                       onChange={(event) => {
                         setSnippets(undefined);
                         setServer((old) => ({
@@ -1129,6 +1155,7 @@ function App() {
                     {t("selectedKey")}
                     <select
                       value={server.keyName}
+                      disabled={busy}
                       onChange={(event) => {
                         setSnippets(undefined);
                         setServer((old) => ({
@@ -1212,7 +1239,11 @@ function App() {
                     config.hosts.map((host, index) => (
                       <button
                         key={`${host.aliases}-${index}`}
-                        onClick={() => setAlias(host.aliases.split(/\s+/)[0])}
+                        disabled={busy}
+                        onClick={() => {
+                          setResolved("");
+                          setAlias(host.aliases.split(/\s+/)[0]);
+                        }}
                       >
                         {host.aliases}
                       </button>
@@ -1226,7 +1257,11 @@ function App() {
                     {t("alias")}
                     <input
                       value={alias}
-                      onChange={(event) => setAlias(event.target.value)}
+                      disabled={busy}
+                      onChange={(event) => {
+                        setResolved("");
+                        setAlias(event.target.value);
+                      }}
                     />
                   </label>
                   <button
@@ -1256,7 +1291,11 @@ function App() {
                     rows={12}
                     placeholder={t("configPlaceholder")}
                     value={configText}
-                    onChange={(event) => setConfigText(event.target.value)}
+                    disabled={busy}
+                    onChange={(event) => {
+                      setResolved("");
+                      setConfigText(event.target.value);
+                    }}
                   />
                 </label>
                 <div className="actions">
@@ -1270,6 +1309,7 @@ function App() {
                         );
                         setConfig(value);
                         setConfigText(value.text);
+                        setResolved("");
                       }, "saved")
                     }
                   >
@@ -1307,11 +1347,7 @@ function App() {
             aria-labelledby="prompt-title"
             onSubmit={(event) => {
               event.preventDefault();
-              void api?.answerPrompt(prompt.id, answer).then((result) => {
-                if (!result.ok) setError(result.error);
-              });
-              setAnswer("");
-              setPrompt(undefined);
+              if (prompt.kind !== "hostkey") void respondToPrompt(answer);
             }}
           >
             <h2 id="prompt-title">{t(prompt.kind)}</h2>
@@ -1325,12 +1361,14 @@ function App() {
               )}
             </p>
             {prompt.fingerprint && <pre>{prompt.fingerprint}</pre>}
+            {promptError && <p role="alert">{t("invalidPrompt")}</p>}
             {prompt.kind !== "hostkey" && (
               <input
                 autoFocus
                 aria-label={t(prompt.kind)}
                 type="password"
                 autoComplete="off"
+                disabled={answeringPrompt === prompt.id}
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
               />
@@ -1340,26 +1378,29 @@ function App() {
                 <>
                   <button
                     type="button"
-                    disabled={!prompt.fingerprint}
-                    onClick={() => {
-                      void api?.answerPrompt(prompt.id, "yes");
-                      setPrompt(undefined);
-                    }}
+                    disabled={
+                      !prompt.fingerprint || answeringPrompt === prompt.id
+                    }
+                    onClick={() => void respondToPrompt("yes")}
                   >
                     {t("trust")}
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      void api?.answerPrompt(prompt.id, "no");
-                      setPrompt(undefined);
-                    }}
+                    autoFocus
+                    disabled={answeringPrompt === prompt.id}
+                    onClick={() => void respondToPrompt("no")}
                   >
                     {t("reject")}
                   </button>
                 </>
               ) : (
-                <button className="primary">{t("answer")}</button>
+                <button
+                  className="primary"
+                  disabled={answeringPrompt === prompt.id}
+                >
+                  {t("answer")}
+                </button>
               )}
               <button
                 type="button"

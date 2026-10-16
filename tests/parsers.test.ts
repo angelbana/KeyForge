@@ -37,6 +37,20 @@ test("public parser handles CRLF and comments with spaces", () => {
     `SHA256:${createHash("sha256").update(data).digest("base64").replace(/=+$/, "")}`,
   );
 });
+test("public parser refuses line breaks and control separators between fields", () => {
+  const [type, blob] = fixture().text.split(" ");
+  for (const separator of ["\n", "\r\n", "\v", "\f", "\u0085", "\u00a0"]) {
+    assert.throws(
+      () => parsePublicKey(`${type}${separator}${blob} comment`),
+      /invalidPublicKey/,
+    );
+    assert.throws(
+      () => parsePublicKey(`${type} ${blob}${separator}comment`),
+      /invalidPublicKey/,
+    );
+  }
+  assert.equal(parsePublicKey(`${type}\t${blob}\tключ\r\n`).comment, "ключ");
+});
 test("public parser rejects a mismatched embedded algorithm", () => {
   const { text } = fixture();
   assert.throws(

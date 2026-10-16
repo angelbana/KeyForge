@@ -1,14 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import type { IPty } from "node-pty";
 import type { Prompt, HardwareState } from "../shared/types";
 import { requestsHardwareTouch, hardwareEnrollmentFailure } from "./hardware";
+import { hasTerminalControls } from "./parsers";
 
 // No raw terminal output leaves this module. Prompts are classified locally.
 export class InteractiveRunner {
   private active: IPty | undefined;
   private cancelled = false;
+  private cancellation = 0;
+  get cancellationVersion(): number {
+    return this.cancellation;
+  }
+  get busy(): boolean {
+    return this.active !== undefined;
+  }
   private pending:
     { id: string; kind: Prompt["kind"]; terminal: IPty } | undefined;
   constructor(
@@ -21,7 +30,7 @@ export class InteractiveRunner {
       this.pending.id !== id ||
       typeof answer !== "string" ||
       answer.length > 1024 ||
-      /[\r\n\0]/.test(answer)
+      hasTerminalControls(answer)
     )
       throw new Error("invalidPrompt");
     if (this.pending.kind === "hostkey" && answer !== "yes" && answer !== "no")
@@ -30,6 +39,7 @@ export class InteractiveRunner {
     this.pending = undefined;
   }
   cancel(): void {
+    this.cancellation++;
     if (this.active) {
       this.cancelled = true;
       this.active.kill();
@@ -88,11 +98,10 @@ export class InteractiveRunner {
       }, 180_000);
       // ssh-keygen disables echo before printing the passphrase prompt.
       terminal.onData((data) => {
-        const ansi = new RegExp(
-          `${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`,
-          "g",
+        // Keep incomplete escape sequences until the next PTY chunk arrives.
+        buffer = stripVTControlCharacters((buffer + data).slice(-8192)).slice(
+          -4096,
         );
-        buffer = (buffer + data.replace(ansi, "")).slice(-4096);
         if (
           hardwareEnrollment &&
           hardwareFailure !== "hardwareCredentialExists"

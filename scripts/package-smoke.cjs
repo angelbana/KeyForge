@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, dialog } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
@@ -37,6 +37,46 @@ app
       "window.keyforge.deleteKey('../outside', 'invalid', 'ru')",
     );
     assert.deepEqual(unsafeDeletion, { ok: false, error: "invalidName" });
+    const choose = dialog.showSaveDialog;
+    const chosenPath = path.join(directory, "custom", "retry-key");
+    let chosen;
+    try {
+      dialog.showSaveDialog = async () => ({
+        canceled: false,
+        filePath: chosenPath,
+      });
+      chosen = await window.webContents.executeJavaScript(
+        "window.keyforge.chooseTarget('retry-key')",
+      );
+    } finally {
+      dialog.showSaveDialog = choose;
+    }
+    assert.equal(chosen.ok, true);
+    const request = {
+      algorithm: "invalid",
+      bits: 256,
+      name: "retry-key",
+      comment: "",
+      passphrase: "",
+      resident: false,
+      verifyRequired: false,
+      targetPath: chosenPath,
+    };
+    const generate = () =>
+      window.webContents.executeJavaScript(
+        `window.keyforge.generate(${JSON.stringify(request)})`,
+      );
+    assert.deepEqual(await generate(), {
+      ok: false,
+      error: "invalidAlgorithm",
+    });
+    request.algorithm = "ed25519";
+    assert.equal(
+      (await generate()).ok,
+      true,
+      "Retry must preserve the user-approved target after validation failure",
+    );
+    assert.ok(fs.existsSync(`${chosenPath}.pub`));
     if (process.platform === "win32") {
       const packagedRequire = createRequire(main);
       const pty = packagedRequire("node-pty");
@@ -78,6 +118,7 @@ app
         "production IPC sender validation accepted the main frame",
         "default SSH directory read without mutation",
         "production deletion IPC rejects unsafe paths before confirmation or file operations",
+        "production generation IPC preserves an approved custom path across a failed attempt; isolated software key only",
         ...(process.platform === "win32"
           ? [
               "packaged Microsoft key generator creates an encrypted software key in an isolated directory",
