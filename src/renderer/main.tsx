@@ -114,6 +114,15 @@ function App() {
   const [installUser, setInstallUser] = useState("");
   const [installCommand, setInstallCommand] = useState("");
   const [request, setRequest] = useState(initialRequest);
+  const [showPassphrase, setShowPassphrase] = useState(false);
+  useEffect(() => {
+    setShowPassphrase(false);
+  }, [tab]);
+  useEffect(() => {
+    const hidePassphrase = () => setShowPassphrase(false);
+    window.addEventListener("blur", hidePassphrase);
+    return () => window.removeEventListener("blur", hidePassphrase);
+  }, []);
   const [allowEmpty, setAllowEmpty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -380,7 +389,7 @@ function App() {
               ))}
             </select>
           </label>
-          <small>KeyForge 0.1.4</small>
+          <small>KeyForge 0.1.5</small>
         </div>
       </aside>
       <main>
@@ -698,6 +707,7 @@ function App() {
                 onSubmit={(event) => {
                   event.preventDefault();
                   const submitted = { ...request };
+                  setShowPassphrase(false);
                   setRequest((old) => ({ ...old, passphrase: "" }));
                   setAllowEmpty(false);
                   void act(async () => {
@@ -790,16 +800,35 @@ function App() {
                       </label>
                     )}
                     <label className="wide">
-                      {t("passphrase")}
-                      <input
-                        type="password"
-                        autoComplete="new-password"
-                        maxLength={1024}
-                        value={request.passphrase}
-                        onChange={(event) =>
-                          update("passphrase", event.target.value)
-                        }
-                      />
+                      {t(hardware ? "hardwarePassphrase" : "passphrase")}
+                      <span className="passphrase-input">
+                        <input
+                          id="generation-passphrase"
+                          type={showPassphrase ? "text" : "password"}
+                          autoComplete="new-password"
+                          spellCheck={false}
+                          maxLength={1024}
+                          value={request.passphrase}
+                          onChange={(event) =>
+                            update("passphrase", event.target.value)
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="toggle-passphrase"
+                          aria-controls="generation-passphrase"
+                          aria-pressed={showPassphrase}
+                          onClick={() =>
+                            setShowPassphrase((visible) => !visible)
+                          }
+                        >
+                          {t(
+                            showPassphrase
+                              ? "hidePassphrase"
+                              : "showPassphrase",
+                          )}
+                        </button>
+                      </span>
                       <span className="password-tools">
                         <StrengthIndicator
                           value={request.passphrase}
@@ -808,6 +837,7 @@ function App() {
                         <button
                           type="button"
                           onClick={() => {
+                            setShowPassphrase(false);
                             const bytes = crypto.getRandomValues(
                               new Uint8Array(32),
                             );
@@ -822,6 +852,13 @@ function App() {
                           {t("random")}
                         </button>
                       </span>
+                      <small>
+                        {t(
+                          hardware
+                            ? "hardwarePassphraseHint"
+                            : "softwarePassphraseHint",
+                        )}
+                      </small>
                       <small>{t("passphraseHint")}</small>
                     </label>
                   </div>
@@ -859,7 +896,7 @@ function App() {
                           setAllowEmpty(event.target.checked)
                         }
                       />
-                      {t("noPassphrase")}
+                      {t(hardware ? "noHardwarePassphrase" : "noPassphrase")}
                     </label>
                   )}
                   {hardware && (

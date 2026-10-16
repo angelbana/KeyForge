@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Added an explicit Show/Hide control for generated or entered passphrases, with automatic masking on blur, navigation and submission.
+- Explained software-key encryption, hardware key-handle encryption and the separate FIDO2 PIN in both interface languages.
+- Added a reminder to save generated passphrases before submitting; clarified the unencrypted hardware-handle consent.
+
 ## 0.1.4
 
 - Replaced generic hardware enrollment failures with safe, localized FIDO provider, device, feature and PIN diagnostics.

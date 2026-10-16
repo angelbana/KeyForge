@@ -373,6 +373,67 @@ app
       ),
       "4",
     );
+    stage = "passphrase visibility and lifetime";
+    await clipboard.clear();
+    assert.equal(
+      await evaluate("document.querySelector('#generation-passphrase').type"),
+      "password",
+    );
+    await evaluate("document.querySelector('.toggle-passphrase').click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(
+      await evaluate("document.querySelector('#generation-passphrase').type"),
+      "text",
+    );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('#generation-passphrase').value.length === 64",
+      ),
+      true,
+    );
+    assert.equal(await clipboard.readText(), "");
+    assert.equal(
+      await evaluate(
+        "Object.values(localStorage).includes(document.querySelector('#generation-passphrase').value)",
+      ),
+      false,
+    );
+    await evaluate("window.dispatchEvent(new Event('blur'))");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(
+      await evaluate("document.querySelector('#generation-passphrase').type"),
+      "password",
+    );
+    await evaluate("document.querySelector('.toggle-passphrase').click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate("document.querySelectorAll('nav button')[0].click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate("document.querySelectorAll('nav button')[1].click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(
+      await evaluate("document.querySelector('#generation-passphrase').type"),
+      "password",
+    );
+    // Clear through a real submission that rejects a duplicate name before key generation.
+    await evaluate(
+      "(() => { const input = document.querySelector('.form-grid input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'test-ed25519'); input.dispatchEvent(new Event('input', {bubbles:true})); })()",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate("document.querySelector('form').requestSubmit()");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(
+      await evaluate(
+        "document.querySelector('#generation-passphrase').value.length",
+      ),
+      0,
+    );
+    assert.equal(
+      await evaluate("document.querySelector('#generation-passphrase').type"),
+      "password",
+    );
+    checks.push(
+      "generated passphrase can be revealed; remasked on blur/navigation, cleared on submission and never copied or persisted automatically",
+    );
     // Verify event rendering using explicit simulated states; this is not a live token check.
     await evaluate("document.querySelectorAll('nav button')[2].click()");
     await new Promise((resolve) => setTimeout(resolve, 100));

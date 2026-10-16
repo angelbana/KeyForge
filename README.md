@@ -8,6 +8,7 @@
 
 ## Возможности
 
+- Парольная фраза шифрует локальный файл: приватный ключ для программных алгоритмов или файл-ссылку для YubiKey. Приватный ключ YubiKey остаётся на токене, а FIDO2 PIN задаётся отдельно. Кнопка «Показать / Скрыть» раскрывает ввод только по запросу; поле снова маскируется при потере фокуса окна и смене раздела. Сохраните сгенерированную фразу в менеджере паролей до создания: при отправке формы поле очищается, в настройках фраза не хранится.
 - Обзор `.pub` в стандартном каталоге SSH: алгоритм, размер, комментарий, SHA256 fingerprint, дата изменения, наличие приватного файла и его шифрования.
 - Копирование только публичного ключа. Содержимое приватных ключей не передаётся в интерфейс, буфер обмена или журналы.
 - Генерация через OpenSSH: Ed25519, ECDSA 256/384/521, RSA 3072/4096, ed25519-sk и ecdsa-sk. RSA 2048 не создаётся.
@@ -68,6 +69,8 @@ SSH config сохраняется целиком с нормализацией C
 GitHub CI запускает проверки и упаковку на трёх ОС, не публикует релизы. Результаты доступны во вкладке Actions репозитория. Аудит инструментов сборки может показывать отдельные проблемы транзитивных devDependencies: смотрите `npm audit`. `npm audit --omit=dev` проверяет runtime-зависимости отдельно.
 
 ## English
+
+The passphrase encrypts a local file: a software private key or a hardware key handle. A YubiKey keeps its private key on the token; its FIDO2 PIN is separate. Show/Hide reveals the entered phrase on request, and masks it again on window blur or navigation. Save generated phrases in your password manager before submission: the field is cleared when submitted, and the phrase is not saved in settings.
 
 [Download the Windows x64 build](https://github.com/angelbana/KeyForge/releases/latest). Choose KeyForge-0.1.3-windows-x64.zip under Assets, extract the entire archive and run KeyForge.exe. No Node.js, npm or Git is needed to run the app; OpenSSH is required. The build is unsigned. Linux/macOS packages are not published yet.
 

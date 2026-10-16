@@ -66,8 +66,15 @@ export const en = {
   recommended: "Recommended",
   bits: "Key size",
   passphrase: "Passphrase",
+  hardwarePassphrase: "Local key-file passphrase",
+  showPassphrase: "Show",
+  hidePassphrase: "Hide",
+  softwarePassphraseHint:
+    "Encrypts the private key file on this computer. It is needed to unlock the file; the phrase itself is not stored in plain text.",
+  hardwarePassphraseHint:
+    "Encrypts the local key-handle file. The private key stays on the YubiKey; this phrase does not set or replace its FIDO2 PIN.",
   passphraseHint:
-    "Kept only for this operation. Never saved to settings or passed as a process argument.",
+    "Save a generated phrase in your password manager before creating the key. The field is cleared on submission; the phrase is not saved to settings or passed as a process argument.",
   random: "Generate passphrase",
   weak: "Weak",
   fair: "Fair",
@@ -75,6 +82,8 @@ export const en = {
   none: "Empty",
   noPassphrase:
     "I understand that an empty passphrase leaves the private key unencrypted.",
+  noHardwarePassphrase:
+    "I understand that the local key-handle file will not be encrypted with a passphrase. The token's PIN and touch requirements still apply.",
   resident: "Resident credential",
   verifyRequired: "Require PIN / user verification",
   create: "Create key",
@@ -267,8 +276,15 @@ export const ru: Record<keyof typeof en, string> = {
   recommended: "Рекомендуется",
   bits: "Размер ключа",
   passphrase: "Парольная фраза",
+  hardwarePassphrase: "Парольная фраза локального файла ключа",
+  showPassphrase: "Показать",
+  hidePassphrase: "Скрыть",
+  softwarePassphraseHint:
+    "Шифрует приватный файл на этом компьютере. Нужна для его открытия; сама фраза не хранится в открытом виде.",
+  hardwarePassphraseHint:
+    "Шифрует локальный файл-ссылку на аппаратный ключ. Приватный ключ остаётся на YubiKey; эта фраза не задаёт и не заменяет её FIDO2 PIN.",
   passphraseHint:
-    "Используется только для этой операции. Не сохраняется в настройках и не передаётся в аргументах процесса.",
+    "До создания ключа сохраните сгенерированную фразу в менеджере паролей. При отправке формы поле очищается; фраза не сохраняется в настройках и не передаётся в аргументах процесса.",
   random: "Сгенерировать парольную фразу",
   weak: "Слабая",
   fair: "Средняя",
@@ -276,6 +292,8 @@ export const ru: Record<keyof typeof en, string> = {
   none: "Пустая",
   noPassphrase:
     "Понимаю, что без парольной фразы приватный ключ останется незашифрованным.",
+  noHardwarePassphrase:
+    "Понимаю, что локальный файл-ссылка останется без шифрования парольной фразой. Требования PIN и касания токена сохраняются.",
   resident: "Резидентный ключ на токене",
   verifyRequired: "Требовать PIN / проверку пользователя",
   create: "Создать ключ",

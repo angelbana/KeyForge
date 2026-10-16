@@ -618,6 +618,19 @@ label small {
   justify-content: space-between;
   gap: 12px;
 }
+.passphrase-input {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.passphrase-input input {
+  flex: 1;
+  min-width: 0;
+}
+.passphrase-input button {
+  min-width: 80px;
+  flex-shrink: 0;
+}
 .password-tools button {
   font-size: 11px;
   padding: 6px 8px;
