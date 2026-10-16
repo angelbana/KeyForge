@@ -41,11 +41,23 @@ test("ordinary PIN prompts and unrecognized terminal data are not diagnoses", ()
   ])
     assert.equal(hardwareEnrollmentFailure(output), undefined);
 });
-test("actual Windows FIDO access denial is not collapsed into an unknown failure", () => {
+test("bad permissions alone does not prove that Windows administrator rights are missing", () => {
   assert.equal(
     hardwareEnrollmentFailure(
       "You may need to touch your authenticator to authorize key generation.\r\nKey enrollment failed: bad permissions\r\n",
     ),
+    "hardwareEnrollmentDenied",
+  );
+});
+test("resident overwrite prompt is distinguished from access denial", () => {
+  assert.equal(
+    hardwareEnrollmentFailure(
+      "Overwrite key in token (y/n)? \r\nKey enrollment failed: bad permissions",
+    ),
+    "hardwareCredentialExists",
+  );
+  assert.equal(
+    hardwareEnrollmentFailure("Key enrollment failed: permission denied"),
     "hardwareAccessDenied",
   );
 });

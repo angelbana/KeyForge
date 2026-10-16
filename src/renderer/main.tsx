@@ -389,7 +389,7 @@ function App() {
               ))}
             </select>
           </label>
-          <small>KeyForge 0.1.7</small>
+          <small>KeyForge 0.1.8</small>
         </div>
       </aside>
       <main>
@@ -906,18 +906,21 @@ function App() {
                         label={hardwareLabel}
                       />
                       {caps?.platform === "win32" && (
-                        <p
-                          className="muted windows-elevation"
-                          data-elevated={String(caps.windowsElevated)}
-                        >
-                          {t(
-                            caps.windowsElevated === true
-                              ? "windowsElevated"
-                              : caps.windowsElevated === false
-                                ? "windowsStandard"
-                                : "windowsElevationUnknown",
-                          )}
-                        </p>
+                        <>
+                          <p
+                            className="muted windows-elevation"
+                            data-elevated={String(caps.windowsElevated)}
+                          >
+                            {t(
+                              caps.windowsElevated === true
+                                ? "windowsElevated"
+                                : caps.windowsElevated === false
+                                  ? "windowsStandard"
+                                  : "windowsElevationUnknown",
+                            )}
+                          </p>
+                          <p className="muted">{t("windowsFidoPromptHint")}</p>
+                        </>
                       )}
                       <label className="checkbox">
                         <input
@@ -929,6 +932,17 @@ function App() {
                         />
                         {t("resident")}
                       </label>
+                      {request.resident && (
+                        <label>
+                          {t("residentApplication")}
+                          <input
+                            className="resident-application"
+                            readOnly
+                            value={`ssh:keyforge:${request.name}`}
+                          />
+                          <small>{t("residentApplicationHint")}</small>
+                        </label>
+                      )}
                       <label className="checkbox">
                         <input
                           type="checkbox"

@@ -5,13 +5,21 @@ export const en = {
   hardwareAbsent: "No device detected",
   hardwareReady: "Connected and ready",
   hardwareTouch: "OpenSSH requests a physical touch",
-  windowsElevated:
-    "Windows: running as administrator.",
+  windowsElevated: "Windows: running as administrator.",
   windowsStandard:
-    "Windows: standard permissions. If OpenSSH reports bad permissions, close KeyForge and use Run as administrator.",
+    "Windows: standard permissions. Some direct USB FIDO providers require Run as administrator; this does not resolve resident-credential conflicts.",
   windowsElevationUnknown: "Windows: could not determine administrator status.",
+  windowsFidoPromptHint:
+    "Confirm PIN and touch in the Windows Security dialog. The Windows build includes a verified Microsoft OpenSSH key generator; the system OpenSSH installation is unchanged.",
   hardwareAccessDenied:
-    "OpenSSH reports ‘bad permissions’: access to the FIDO token was denied. On Windows, close KeyForge and use Run as administrator, then check the permissions status in the form. On Linux, check the device access rules. Do not change the token PIN or reset the device to fix this error.",
+    "The FIDO provider explicitly denied device access. Check Windows administrator status or Linux device access rules. Do not reset the token for this error.",
+  hardwareEnrollmentDenied:
+    "OpenSSH returned ‘bad permissions’. Resident enrollment can use this status for a credential conflict or an older Windows OpenSSH bug. It does not prove missing administrator rights. Use the updated Windows build; KeyForge refuses token replacement.",
+  hardwareCredentialExists:
+    "OpenSSH requested token replacement; KeyForge refused. Older Windows OpenSSH can issue this prompt even for a new credential: use the updated Windows build. With a current provider, choose another key name or recover the existing handle. No existing credential was overwritten.",
+  residentApplication: "FIDO application (from file name)",
+  residentApplicationHint:
+    "Separates this resident key from other SSH credentials. A different file name uses a different application; existing token entries are preserved.",
   hardwareDetectionHint:
     "Device detection uses libfido2's optional fido2-token utility. Install it and refresh to detect connected USB tokens. OpenSSH algorithm support alone does not establish that a token is connected.",
   protection: "Protection",
@@ -221,14 +229,22 @@ export const ru: Record<keyof typeof en, string> = {
   hardwareAbsent: "Устройство не обнаружено",
   hardwareReady: "Подключён и готов",
   hardwareTouch: "OpenSSH ожидает физического касания",
-  windowsElevated:
-    "Windows: запущено от администратора.",
+  windowsElevated: "Windows: запущено от администратора.",
   windowsStandard:
-    "Windows: обычные права. При ошибке OpenSSH «bad permissions» закройте KeyForge и запустите от имени администратора.",
+    "Windows: обычные права. Некоторым провайдерам прямого USB-доступа FIDO нужен запуск от администратора; это не устраняет конфликт резидентных записей.",
   windowsElevationUnknown:
     "Windows: не удалось определить права администратора.",
+  windowsFidoPromptHint:
+    "Подтвердите PIN и касание в системном окне «Безопасность Windows». Windows-сборка включает проверенный генератор ключей Microsoft OpenSSH; системная установка OpenSSH не меняется.",
   hardwareAccessDenied:
-    "OpenSSH сообщает «bad permissions»: доступ к FIDO-токену запрещён. В Windows закройте KeyForge и запустите от имени администратора, затем проверьте статус прав в форме. В Linux проверьте правила доступа к устройству. Для этой ошибки не нужно менять PIN или сбрасывать токен.",
+    "FIDO-провайдер явно запретил доступ к устройству. Проверьте права администратора Windows или правила доступа к устройству Linux. Для этой ошибки не нужно сбрасывать токен.",
+  hardwareEnrollmentDenied:
+    "OpenSSH вернул «bad permissions». При создании резидентного ключа это может означать конфликт записи либо ошибку старого Windows OpenSSH. Это не доказывает отсутствие прав администратора. Используйте обновлённую Windows-сборку; KeyForge отказывается от замены записей токена.",
+  hardwareCredentialExists:
+    "OpenSSH запросил замену записи токена; KeyForge отказался. Старый Windows OpenSSH может запрашивать это даже для нового ключа: используйте обновлённую Windows-сборку. С актуальным провайдером выберите другое имя ключа либо восстановите существующий файл-ссылку. Имеющиеся записи не перезаписаны.",
+  residentApplication: "Метка FIDO (из имени файла)",
+  residentApplicationHint:
+    "Отделяет этот резидентный ключ от других SSH-ключей. Другое имя файла создаёт другую метку; существующие записи токена сохраняются.",
   hardwareDetectionHint:
     "Обнаружение использует необязательную утилиту fido2-token из libfido2. Установите её и обновите данные для поиска USB-токенов. Поддержка алгоритмов OpenSSH сама по себе не подтверждает подключение токена.",
   protection: "Защита",

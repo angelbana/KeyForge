@@ -56,7 +56,9 @@ node scripts/publish-local-build.cjs
 
 ## Безопасность и ограничения
 
-В форме аппаратного ключа Windows отображается фактический статус прав процесса. Если OpenSSH возвращает `bad permissions`, для прямого доступа к USB FIDO может потребоваться закрыть приложение и запустить `KeyForge.exe` от имени администратора. Это не изменение PIN и не подтверждение успешной регистрации; некоторые провайдеры Windows Hello работают без повышения прав.
+Windows-сборка включает генератор ключей и FIDO-helper из официального [Microsoft OpenSSH 10.0.0.0p2 Preview](https://github.com/PowerShell/Win32-OpenSSH/releases/tag/10.0.0.0p2-Preview). При сборке архив загружается в `../verification/tools/`, проверяется по закреплённому SHA256 и цифровым подписям Microsoft; лицензии включаются в приложение. Нужен интернет при первой Windows-сборке. Системный OpenSSH не заменяется: он используется для SSH-соединений, а включённые утилиты — для генерации ключей. PIN и подтверждение касания запрашиваются системным окном «Безопасность Windows».
+
+Windows OpenSSH 9.5 может всегда запрашивать перезапись резидентного ключа из-за ошибки проверки существующей записи, даже для новой метки. Ответ «нет» затем отображается как `bad permissions`: это не доказывает отсутствие прав администратора. KeyForge всегда отказывается от перезаписи токена и использует отдельную метку `application=ssh:keyforge:<имя файла>`. Обновлённый генератор устраняет ложный запрос. В форме также показан фактический статус прав; некоторым провайдерам прямого USB-доступа нужны повышенные права. Имеющуюся запись можно восстановить через OpenSSH вместо замены.
 
 Все ключи обрабатываются локально. Основной процесс запускает OpenSSH без shell-интерполяции. Renderer изолирован, работает без Node.js, с sandbox и CSP, без сетевых запросов; IPC проверяет окно и frame отправителя. Приложение не предоставляет просмотр или экспорт приватных ключей.
 
@@ -98,6 +100,8 @@ Deployment provides PowerShell/POSIX commands and optional ssh-copy-id on Unix. 
 The key detail panel also offers a “Command for the server” button. Paste the copied command into a Linux/macOS server terminal. Leave the account empty to install for the current account; a specified account uses sudo and requires appropriate privileges. Duplicate detection ignores comments and preserves restrictions on existing authorized_keys entries. Only the public key is embedded.
 
 OpenSSH algorithm support is separate from optional physical device discovery through libfido2. Real FIDO2 enrollment, server deployment, Linux/macOS packages and PAM/TOTP require separate verification. The 2FA checklist must be adapted to the server's existing PAM stack and tested with recovery access. Secrets are transient; JavaScript cannot guarantee erasure of immutable strings from RAM. Cancellation may leave a resident credential on the token. Manual deployment can append duplicates. This version does not support private-key export, SSH certificates or agent/resident-credential management.
+
+Windows builds include key-generation utilities from [Microsoft OpenSSH 10.0.0.0p2 Preview](https://github.com/PowerShell/Win32-OpenSSH/releases/tag/10.0.0.0p2-Preview), with a pinned archive SHA256, verified Microsoft signatures and included licenses. The first Windows build requires internet access; cached tools stay outside the repository in `../verification/tools/`. System OpenSSH remains unchanged and handles SSH connections. PIN/touch confirmation uses the Windows Security dialog. This avoids Windows OpenSSH 9.5's unconditional resident-overwrite prompt, which can end in misleading `bad permissions` even for a new credential. KeyForge always refuses token overwrites, and resident keys use a filename-specific `ssh:keyforge:` application scope. Full hardware enrollment/signing still require the user's local PIN and touch.
 
 ## References
 

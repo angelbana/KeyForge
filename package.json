@@ -1,12 +1,12 @@
 {
   "name": "keyforge",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "description": "Local SSH key and configuration manager",
   "main": "compiled/main/main.js",
   "scripts": {
     "dev": "npm run build && electron ../verification/build-work/compiled/main/main.js",
-    "build": "tsc -p tsconfig.main.json && tsc --noEmit -p tsconfig.json && vite build && node scripts/link-dependencies.cjs",
+    "build": "node scripts/prepare-windows-openssh.cjs && tsc -p tsconfig.main.json && tsc --noEmit -p tsconfig.json && vite build && node scripts/link-dependencies.cjs",
     "test": "tsx --test tests/*.test.ts",
     "lint": "eslint src tests scripts",
     "check": "npm run lint && npm run test && npm run build",
@@ -49,7 +49,8 @@
         "to": "compiled",
         "filter": [
           "**/*",
-          "!node_modules/**/*"
+          "!node_modules/**/*",
+          "!openssh/**/*"
         ]
       },
       "package.json"
@@ -58,6 +59,15 @@
       "node_modules/node-pty/**/*"
     ],
     "win": {
+      "extraResources": [
+        {
+          "from": "../verification/build-work/compiled/openssh",
+          "to": "openssh",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ],
       "icon": "assets/icon.ico",
       "target": [
         "nsis"

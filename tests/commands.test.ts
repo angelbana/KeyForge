@@ -70,6 +70,29 @@ test("hardware flags are limited to security key algorithms", () => {
     generationArgs({ ...request, resident: true }, "/tmp/key"),
   );
 });
+test("resident keys use a separate application namespace for each file name", () => {
+  const first = generationArgs(
+    { ...request, algorithm: "ed25519-sk", resident: true, name: "server-a" },
+    "/tmp/server-a",
+  );
+  const second = generationArgs(
+    { ...request, algorithm: "ed25519-sk", resident: true, name: "server-b" },
+    "/tmp/server-b",
+  );
+  assert.match(
+    first.find((value) => value.startsWith("application="))!,
+    /^application=ssh:keyforge:server-a$/,
+  );
+  assert.match(
+    second.find((value) => value.startsWith("application="))!,
+    /^application=ssh:keyforge:server-b$/,
+  );
+  assert.ok(
+    !generationArgs(request, "/tmp/software").some((value) =>
+      value.startsWith("application="),
+    ),
+  );
+});
 test("file names reject traversal, SSH config and Windows reserved paths", () => {
   for (const name of [
     "../key",

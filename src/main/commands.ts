@@ -46,7 +46,8 @@ export function generationArgs(
     args.push("-b", String(request.bits));
   }
   if (request.algorithm.endsWith("-sk")) {
-    if (request.resident) args.push("-O", "resident");
+    if (request.resident)
+      args.push("-O", "resident", "-O", `application=ssh:keyforge:${request.name}`);
     if (request.verifyRequired) args.push("-O", "verify-required");
   } else if (request.resident || request.verifyRequired)
     throw new Error("invalidAlgorithm");

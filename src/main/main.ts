@@ -30,6 +30,8 @@ const knownErrors = new Set([
   "operationFailed",
   "hardwareProviderUnavailable",
   "hardwareAccessDenied",
+  "hardwareEnrollmentDenied",
+  "hardwareCredentialExists",
   "hardwarePinBlocked",
   "hardwarePinRequired",
   "hardwarePinInvalid",

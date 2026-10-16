@@ -4,6 +4,7 @@ const path = require("node:path");
 const os = require("node:os");
 const { createRequire } = require("node:module");
 const assert = require("node:assert/strict");
+const { randomBytes } = require("node:crypto");
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), "keyforge-package-"));
 app.setPath("userData", directory);
 const archive = path.resolve(process.argv[2]);
@@ -32,6 +33,39 @@ app
     );
     assert.equal(result.ok, true);
     assert.equal(result.hasDirectory, true);
+    if (process.platform === "win32") {
+      const packagedRequire = createRequire(main);
+      const pty = packagedRequire("node-pty");
+      const spawn = pty.spawn;
+      const spawnedFiles = [];
+      pty.spawn = (file, ...args) => {
+        spawnedFiles.push(file);
+        return spawn(file, ...args);
+      };
+      try {
+        const { KeyService } = packagedRequire("./service");
+        const service = new KeyService(
+          () => service.interactive.cancel(),
+          path.join(directory, "keys"),
+        );
+        await service.generate({
+          algorithm: "ed25519",
+          bits: 256,
+          name: "package-test",
+          comment: "",
+          passphrase: randomBytes(24).toString("hex"),
+          resident: false,
+          verifyRequired: false,
+        });
+        assert.equal(
+          spawnedFiles[0],
+          path.join(path.dirname(archive), "openssh/ssh-keygen.exe"),
+        );
+        assert.match(await service.publicText("package-test"), /^ssh-ed25519 /);
+      } finally {
+        pty.spawn = spawn;
+      }
+    }
     const report = {
       status: "passed",
       checks: [
@@ -39,6 +73,11 @@ app
         "production renderer and sandbox loaded",
         "production IPC sender validation accepted the main frame",
         "default SSH directory read without mutation",
+        ...(process.platform === "win32"
+          ? [
+              "packaged Microsoft key generator creates an encrypted software key in an isolated directory",
+            ]
+          : []),
       ],
     };
     fs.writeFileSync(

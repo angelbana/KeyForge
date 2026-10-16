@@ -2,11 +2,19 @@ import type { HardwareState } from "../shared/types";
 // Return fixed codes only: terminal output can contain paths or authentication data.
 export function hardwareEnrollmentFailure(output: string): string | undefined {
   if (
-    /key enrollment failed:\s*(?:bad permissions|permission denied)|FIDO_ERR_ACCESS_DENIED/i.test(
+    /overwrite\s+key\s+in\s+token|resident key[\s\S]{0,1024}already\s+exists/i.test(
+      output,
+    )
+  )
+    return "hardwareCredentialExists";
+  if (
+    /key enrollment failed:\s*permission denied|FIDO_ERR_ACCESS_DENIED/i.test(
       output,
     )
   )
     return "hardwareAccessDenied";
+  if (/key enrollment failed:\s*bad permissions/i.test(output))
+    return "hardwareEnrollmentDenied";
   if (
     /provider[\s\S]{0,1024}(?:dlopen\s+failed|not found|could not|unable)|no FIDO SecurityKeyProvider specified|internal security key support not enabled|no (?:fido|security key) provider|security key provider.*(?:unavailable|not supported)/i.test(
       output,

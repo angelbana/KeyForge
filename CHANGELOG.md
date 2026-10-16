@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8
+
+- Bundled SHA256-pinned, Microsoft-signed OpenSSH 10.0.0.0p2 Preview key-generation utilities on Windows. This avoids OpenSSH 9.5's unconditional resident-overwrite prompt and uses the native Windows Security dialog without changing system OpenSSH.
+- Separated resident credentials with `application=ssh:keyforge:<file name>` instead of sharing OpenSSH's default `ssh:` scope.
+- Preserved token-overwrite refusals as credential conflicts, including when OpenSSH later reports `bad permissions`.
+- Corrected the previous assumption that `bad permissions` always means missing administrator rights. Existing token credentials are never overwritten automatically.
+
 ## 0.1.7
 
 - Recognized OpenSSH's FIDO `bad permissions` error and added actionable access guidance instead of the generic enrollment message.

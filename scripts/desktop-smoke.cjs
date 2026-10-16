@@ -25,27 +25,88 @@ app
     directory = await fs.mkdtemp(path.join(tmpdir(), "keyforge-electron-"));
     app.setPath("userData", path.join(directory, "profile"));
     service = new KeyService(() => service.interactive.cancel(), directory);
-    stage = "hardware failure diagnostics without token enrollment";
-    await assert.rejects(
-      service.interactive.run(
-        "ssh-keygen",
-        [
-          "-t",
-          "ed25519-sk",
-          "-w",
-          path.join(directory, "missing-provider.dll"),
-          "-f",
-          path.join(directory, "unused-hardware-probe"),
-        ],
-        directory,
-        "",
-      ),
-      (error) =>
-        [
-          "hardwareProviderUnavailable",
-          "hardwareEnrollmentFormatError",
-        ].includes(error.message),
+    stage = "resident overwrite refusal replay (no hardware operation)";
+    const pty = require("node-pty");
+    const originalSpawn = pty.spawn;
+    const writes = [];
+    const dataHandlers = [];
+    const exitHandlers = [];
+    pty.spawn = () => {
+      setTimeout(() => {
+        for (const handler of dataHandlers)
+          handler("Overwrite key in token (y/n)? ");
+      }, 0);
+      return {
+        onData: (handler) => dataHandlers.push(handler),
+        onExit: (handler) => exitHandlers.push(handler),
+        write: (value) => {
+          writes.push(value);
+          setTimeout(() => {
+            for (const handler of dataHandlers)
+              handler("Key enrollment failed: bad permissions\r\n");
+            for (const handler of exitHandlers) handler({ exitCode: 255 });
+          }, 0);
+        },
+        kill: () => {
+          for (const handler of exitHandlers) handler({ exitCode: 1 });
+        },
+      };
+    };
+    try {
+      await assert.rejects(
+        service.interactive.run(
+          "ssh-keygen",
+          ["-t", "ed25519-sk"],
+          directory,
+          "",
+        ),
+        { message: "hardwareCredentialExists" },
+      );
+      assert.deepEqual(writes, ["n\r"]);
+    } finally {
+      pty.spawn = originalSpawn;
+    }
+    checks.push(
+      "replayed token overwrite refusal is preserved as a credential conflict, never confirmed and never overwritten by a later ambiguous bad-permissions error",
     );
+    stage = "hardware failure diagnostics without token enrollment";
+    const spawnedFiles = [];
+    pty.spawn = (file, ...args) => {
+      spawnedFiles.push(file);
+      return originalSpawn(file, ...args);
+    };
+    try {
+      await assert.rejects(
+        service.interactive.run(
+          "ssh-keygen",
+          [
+            "-t",
+            "ed25519-sk",
+            "-w",
+            path.join(directory, "missing-provider.dll"),
+            "-f",
+            path.join(directory, "unused-hardware-probe"),
+          ],
+          directory,
+          "",
+        ),
+        (error) =>
+          [
+            "hardwareProviderUnavailable",
+            "hardwareEnrollmentFormatError",
+          ].includes(error.message),
+      );
+    } finally {
+      pty.spawn = originalSpawn;
+    }
+    if (process.platform === "win32")
+      assert.equal(
+        spawnedFiles[0],
+        path.resolve(
+          root,
+          "../verification/build-work/compiled/openssh/ssh-keygen.exe",
+        ),
+      );
     checks.push(
       "hardware enrollment failures return safe actionable codes; intentionally missing provider, no physical token used",
     );
@@ -381,6 +442,7 @@ app
     );
     await evaluate("document.querySelector('.toggle-passphrase').click()");
     await new Promise((resolve) => setTimeout(resolve, 100));
+    stage = "passphrase reveal";
     assert.equal(
       await evaluate("document.querySelector('#generation-passphrase').type"),
       "text",
@@ -391,6 +453,7 @@ app
       ),
       true,
     );
+    stage = "passphrase not copied or persisted";
     assert.equal(await clipboard.readText(), "");
     assert.equal(
       await evaluate(
@@ -398,6 +461,7 @@ app
       ),
       false,
     );
+    stage = "passphrase remasked on blur";
     await evaluate("window.dispatchEvent(new Event('blur'))");
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(
@@ -406,6 +470,7 @@ app
     );
     await evaluate("document.querySelector('.toggle-passphrase').click()");
     await new Promise((resolve) => setTimeout(resolve, 100));
+    stage = "passphrase remasked on navigation";
     await evaluate("document.querySelectorAll('nav button')[0].click()");
     await new Promise((resolve) => setTimeout(resolve, 100));
     await evaluate("document.querySelectorAll('nav button')[1].click()");
@@ -415,6 +480,7 @@ app
       "password",
     );
     // Clear through a real submission that rejects a duplicate name before key generation.
+    stage = "passphrase cleared on submission";
     await evaluate(
       "(() => { const input = document.querySelector('.form-grid input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'test-ed25519'); input.dispatchEvent(new Event('input', {bubbles:true})); })()",
     );
@@ -449,6 +515,21 @@ app
         "hardware form shows the actual Windows elevation status from the backend without changing token settings",
       );
     }
+    await evaluate("document.querySelectorAll('.algorithm')[3].click()");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await evaluate(
+      "document.querySelector('.hardware-options input[type=checkbox]').click()",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(
+      await evaluate(
+        "document.querySelector('.resident-application').readOnly && document.querySelector('.resident-application').value === 'ssh:keyforge:' + document.querySelector('.form-grid input').value",
+      ),
+      true,
+    );
+    checks.push(
+      "resident form displays its filename-specific application without submitting a hardware generation request",
+    );
     // Verify event rendering using explicit simulated states; this is not a live token check.
     await evaluate("document.querySelectorAll('nav button')[2].click()");
     await new Promise((resolve) => setTimeout(resolve, 100));

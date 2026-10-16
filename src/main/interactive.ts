@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { IPty } from "node-pty";
 import type { Prompt, HardwareState } from "../shared/types";
 import { requestsHardwareTouch, hardwareEnrollmentFailure } from "./hardware";
@@ -47,7 +47,12 @@ export class InteractiveRunner {
       // ConPTY does not apply PATHEXT when looking up an executable.
       let file = executable;
       if (process.platform === "win32") {
+        const archive = __dirname.match(/^(.*\.asar)[\\/]/)?.[1];
+        const bundled = archive
+          ? join(dirname(archive), "openssh")
+          : join(__dirname, "../openssh");
         const dirs = [
+          ...(executable === "ssh-keygen" ? [bundled] : []),
           join(process.env.SystemRoot || "C:\\Windows", "System32", "OpenSSH"),
           ...(process.env.PATH || "").split(";"),
         ];
@@ -88,7 +93,10 @@ export class InteractiveRunner {
           "g",
         );
         buffer = (buffer + data.replace(ansi, "")).slice(-4096);
-        if (hardwareEnrollment) {
+        if (
+          hardwareEnrollment &&
+          hardwareFailure !== "hardwareCredentialExists"
+        ) {
           hardwareFailure =
             hardwareEnrollmentFailure(buffer) ?? hardwareFailure;
         }
