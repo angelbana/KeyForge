@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { IPty } from "node-pty";
 import type { Prompt, HardwareState } from "../shared/types";
-import { requestsHardwareTouch } from "./hardware";
+import { requestsHardwareTouch, hardwareEnrollmentFailure } from "./hardware";
 
 // No raw terminal output leaves this module. Prompts are classified locally.
 export class InteractiveRunner {
@@ -71,6 +71,12 @@ export class InteractiveRunner {
       this.cancelled = false;
       let buffer = "",
         expired = false;
+      const algorithm = args[args.indexOf("-t") + 1];
+      const hardwareEnrollment =
+        executable === "ssh-keygen" &&
+        args.includes("-t") &&
+        algorithm?.endsWith("-sk");
+      let hardwareFailure: string | undefined;
       const timer = setTimeout(() => {
         expired = true;
         terminal.kill();
@@ -82,6 +88,10 @@ export class InteractiveRunner {
           "g",
         );
         buffer = (buffer + data.replace(ansi, "")).slice(-4096);
+        if (hardwareEnrollment) {
+          hardwareFailure =
+            hardwareEnrollmentFailure(buffer) ?? hardwareFailure;
+        }
         if (requestsHardwareTouch(buffer)) {
           this.notifyHardware?.("touch");
         }
@@ -121,7 +131,15 @@ export class InteractiveRunner {
         this.active = undefined;
         if (expired) reject(new Error("operationTimeout"));
         else if (this.cancelled) reject(new Error("operationCancelled"));
-        else if (exitCode !== 0) reject(new Error("operationFailed"));
+        else if (exitCode !== 0)
+          reject(
+            new Error(
+              hardwareFailure ??
+                (hardwareEnrollment
+                  ? "hardwareEnrollmentFailed"
+                  : "operationFailed"),
+            ),
+          );
         else resolve();
       });
     });

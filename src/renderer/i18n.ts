@@ -166,6 +166,22 @@ export const en = {
   operationTimeout: "OpenSSH timed out. Check the device or network and retry.",
   operationFailed:
     "The operation failed or was cancelled. Check OpenSSH, permissions and the device or server, then retry.",
+  hardwareProviderUnavailable:
+    "OpenSSH could not load its FIDO security-key provider. Algorithm names in ssh -Q do not prove that enrollment is supported. Check your OpenSSH installation and FIDO provider.",
+  hardwarePinBlocked:
+    "The token reports a blocked FIDO2 PIN. Stop retrying; check its status in YubiKey Manager. Do not reset FIDO without considering existing credentials.",
+  hardwarePinRequired:
+    "A FIDO2 PIN is required or has not been set. Configure it in YubiKey Manager, then retry. The token PIN is separate from the key-file passphrase.",
+  hardwarePinInvalid:
+    "The token rejected the FIDO2 PIN. Check it before retrying; repeated failures can block the token.",
+  hardwareUnsupported:
+    "The token or FIDO provider does not support the selected algorithm or options. ed25519-sk requires compatible firmware; try ecdsa-sk only if supported. Do not disable PIN verification merely to bypass this error.",
+  hardwareDeviceUnavailable:
+    "OpenSSH could not access a compatible FIDO token. Check the USB connection, enabled FIDO interface and provider. An unavailable device detector does not by itself mean the token is absent.",
+  hardwareEnrollmentFailed:
+    "OpenSSH could not enroll the hardware key. Check token model/firmware, FIDO provider, PIN and the selected resident-key options. No raw terminal output is displayed for security.",
+  hardwareEnrollmentFormatError:
+    "The OpenSSH FIDO helper returned ‘invalid format’ during enrollment. This does not mean your key file is corrupt. Check the FIDO provider and selected token features; OpenSSH may omit the helper's underlying reason on Windows.",
   toolUnavailable:
     "OpenSSH is missing. Install the OpenSSH client and restart KeyForge.",
   outputLimit: "The command returned too much output.",
@@ -351,6 +367,22 @@ export const ru: Record<keyof typeof en, string> = {
     "Истекло время ожидания OpenSSH. Проверьте устройство или сеть и повторите.",
   operationFailed:
     "Операция завершилась ошибкой или отменена. Проверьте OpenSSH, права и устройство или сервер.",
+  hardwareProviderUnavailable:
+    "OpenSSH не смог загрузить FIDO-провайдер аппаратного ключа. Наличие алгоритма в ssh -Q не подтверждает возможность создания. Проверьте установку OpenSSH и FIDO-провайдер.",
+  hardwarePinBlocked:
+    "Токен сообщает о блокировке FIDO2 PIN. Прекратите повторные попытки и проверьте статус в YubiKey Manager. Не сбрасывайте FIDO без учёта сохранённых ключей.",
+  hardwarePinRequired:
+    "Требуется FIDO2 PIN или он ещё не задан. Настройте его в YubiKey Manager и повторите попытку. PIN токена отличается от парольной фразы файла ключа.",
+  hardwarePinInvalid:
+    "Токен отклонил FIDO2 PIN. Проверьте его перед повтором: несколько неверных попыток могут заблокировать токен.",
+  hardwareUnsupported:
+    "Токен или FIDO-провайдер не поддерживает выбранный алгоритм либо параметры. Для ed25519-sk нужна совместимая прошивка; проверьте возможность ecdsa-sk. Не отключайте проверку PIN просто для обхода ошибки.",
+  hardwareDeviceUnavailable:
+    "OpenSSH не получил доступ к совместимому FIDO-токену. Проверьте USB-подключение, включённый FIDO-интерфейс и провайдер. Недоступность обнаружения устройств сама по себе не означает отсутствие токена.",
+  hardwareEnrollmentFailed:
+    "OpenSSH не смог создать аппаратный ключ. Проверьте модель и прошивку токена, FIDO-провайдер, PIN и параметры резидентного ключа. Полный вывод терминала не отображается ради безопасности.",
+  hardwareEnrollmentFormatError:
+    "FIDO-помощник OpenSSH вернул «invalid format» при создании ключа. Это не означает повреждение вашего файла ключа. Проверьте FIDO-провайдер и параметры токена; в Windows OpenSSH может скрывать исходную причину отказа помощника.",
   toolUnavailable:
     "OpenSSH не найден. Установите клиент OpenSSH и перезапустите KeyForge.",
   outputLimit: "Команда вернула слишком много данных.",

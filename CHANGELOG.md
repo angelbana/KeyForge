@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- Replaced generic hardware enrollment failures with safe, localized FIDO provider, device, feature and PIN diagnostics.
+- Kept raw terminal output and PINs inside the system process; hardware failures do not silently change algorithms or weaken verification.
+
 ## 0.1.3
 
 - Restored softer sidebar navigation with more spacing, a subtle active tint and an accent edge.

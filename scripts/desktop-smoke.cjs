@@ -25,6 +25,30 @@ app
     directory = await fs.mkdtemp(path.join(tmpdir(), "keyforge-electron-"));
     app.setPath("userData", path.join(directory, "profile"));
     service = new KeyService(() => service.interactive.cancel(), directory);
+    stage = "hardware failure diagnostics without token enrollment";
+    await assert.rejects(
+      service.interactive.run(
+        "ssh-keygen",
+        [
+          "-t",
+          "ed25519-sk",
+          "-w",
+          path.join(directory, "missing-provider.dll"),
+          "-f",
+          path.join(directory, "unused-hardware-probe"),
+        ],
+        directory,
+        "",
+      ),
+      (error) =>
+        [
+          "hardwareProviderUnavailable",
+          "hardwareEnrollmentFormatError",
+        ].includes(error.message),
+    );
+    checks.push(
+      "hardware enrollment failures return safe actionable codes; intentionally missing provider, no physical token used",
+    );
     let passphrase = randomBytes(32).toString("hex");
     for (const [algorithm, bits] of [
       ["ed25519", 256],
