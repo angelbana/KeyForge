@@ -23,7 +23,7 @@
 
 ## Скачать готовую сборку
 
-[Скачать KeyForge для Windows x64](https://github.com/angelbana/KeyForge/releases/latest). В разделе Assets выберите файл `KeyForge-0.1.3-windows-x64.zip`, распакуйте весь архив в отдельную папку и запустите `KeyForge.exe`. Node.js, npm и Git для запуска не нужны; клиент OpenSSH должен быть установлен. Сборка пока без цифровой подписи. Готовые пакеты Linux/macOS пока не опубликованы.
+[Скачать KeyForge для Windows x64](https://github.com/angelbana/KeyForge/releases/latest). В разделе Assets выберите файл `KeyForge-0.1.10-windows-x64.zip`, распакуйте весь архив в отдельную папку и запустите `KeyForge/KeyForge.exe`. Node.js, npm и Git для запуска не нужны; клиент OpenSSH должен быть установлен. Сборка пока без цифровой подписи. Готовые пакеты Linux/macOS пока не опубликованы.
 
 ## Запуск и сборка
 
@@ -77,7 +77,7 @@ GitHub CI запускает проверки и упаковку на трёх 
 
 The passphrase encrypts a local file: a software private key or a hardware key handle. A YubiKey keeps its private key on the token; its FIDO2 PIN is separate. Show/Hide reveals the entered phrase on request, and masks it again on window blur or navigation. Save generated phrases in your password manager before submission: the field is cleared when submitted, and the phrase is not saved in settings.
 
-[Download the Windows x64 build](https://github.com/angelbana/KeyForge/releases/latest). Choose KeyForge-0.1.3-windows-x64.zip under Assets, extract the entire archive and run KeyForge.exe. No Node.js, npm or Git is needed to run the app; OpenSSH is required. The build is unsigned. Linux/macOS packages are not published yet.
+[Download the Windows x64 build](https://github.com/angelbana/KeyForge/releases/latest). Choose KeyForge-0.1.10-windows-x64.zip under Assets, extract the entire archive and run KeyForge/KeyForge.exe. No Node.js, npm or Git is needed to run the app; OpenSSH is required. The build is unsigned. Linux/macOS packages are not published yet.
 
 KeyForge is a local SSH key manager with Russian and English UI. It uses Electron, React, strict TypeScript and Tailwind CSS. Native OpenSSH creates encrypted software keys and FIDO2 credentials; private material never enters the renderer or clipboard.
 
