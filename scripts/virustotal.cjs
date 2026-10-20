@@ -36,11 +36,14 @@ function inside(root, file) {
 async function publicArtifact(file, roots) {
   const resolved = await fsp.realpath(file);
   const stat = await fsp.lstat(file);
+  const approved = await Promise.all(
+    roots.map((root) => fsp.realpath(root).catch(() => undefined)),
+  );
   if (
     stat.isSymbolicLink() ||
     !stat.isFile() ||
     stat.nlink !== 1 ||
-    !roots.some((root) => inside(root, resolved))
+    !approved.some((root) => root && inside(root, resolved))
   )
     throw new ScanError(
       "Only a regular final artifact inside verification/releases or verification/ci-release may be submitted.",
@@ -87,6 +90,17 @@ function uploadUrl(value) {
 function stats(value) {
   if (!value || typeof value !== "object")
     throw new ScanError("VirusTotal returned no analysis statistics.");
+  for (const required of [
+    "malicious",
+    "suspicious",
+    "undetected",
+    "harmless",
+  ]) {
+    if (!Number.isSafeInteger(value[required]))
+      throw new ScanError(
+        "VirusTotal returned incomplete analysis statistics.",
+      );
+  }
   const result = {};
   for (const name of STATUSES) {
     const count = value[name] ?? 0;

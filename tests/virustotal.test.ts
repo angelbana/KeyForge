@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 const vt = createRequire(import.meta.url)("../scripts/virustotal.cjs");
 const counts = {
@@ -68,6 +68,26 @@ test("VirusTotal refuses upload URLs that could expose the API key", () => {
     "https://www.virustotal.com/_ah/upload/id",
   );
 });
+
+test("VirusTotal resolves the approved directory as well as the artifact path", async () =>
+  fixture(async (file, root) => {
+    const parent = await fs.mkdtemp(join(tmpdir(), "keyforge-vt-alias-"));
+    const alias = join(parent, "release-root");
+    try {
+      await fs.symlink(
+        root,
+        alias,
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      const artifact = await vt.publicArtifact(join(alias, basename(file)), [
+        alias,
+      ]);
+      assert.equal(artifact.file, await fs.realpath(file));
+    } finally {
+      await fs.unlink(alias).catch(() => {});
+      await fs.rm(parent, { recursive: true, force: true });
+    }
+  }));
 
 test("VirusTotal refuses an absent key without sending a request", async () =>
   fixture(async (file, root) => {

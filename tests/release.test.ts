@@ -105,6 +105,19 @@ test("release blocks detections, incomplete engine verdicts and errored complete
         f.commit,
       ),
     );
+  const { malicious: missingVerdict, ...incomplete } = f.report.stats;
+  assert.equal(missingVerdict, 0);
+  assert.throws(
+    () =>
+      validateRelease(
+        f.manifest,
+        { ...f.report, stats: incomplete },
+        f.artifact,
+        f.checksums,
+        f.commit,
+      ),
+    /incomplete analysis statistics/,
+  );
   assert.throws(
     () =>
       validateRelease(
