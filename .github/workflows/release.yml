@@ -1,0 +1,135 @@
+name: Release with VirusTotal
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "New version tag matching package.json; existing releases are never replaced"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: keyforge-public-release-virustotal
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: github.repository == 'angelbana/KeyForge'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Require API key, public repository and a new matching tag
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          node -e 'if (!process.env.VT_API_KEY?.trim()) throw new Error("Configure repository secret VT_API_KEY. Nothing was uploaded."); if (process.env.RELEASE_TAG !== "v" + require("./package.json").version) throw new Error("Tag must match package.json")'
+          test "$(gh repo view "$GITHUB_REPOSITORY" --json isPrivate --jq .isPrivate)" = false
+          if gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            echo "Release already exists; use a new version. Existing release files will not be replaced."
+            exit 1
+          fi
+  checks:
+    needs: preflight
+    uses: ./.github/workflows/check.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+    permissions:
+      contents: read
+  windows:
+    needs: checks
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Package final Windows application, signing when configured
+        shell: pwsh
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          if ($env:CSC_LINK) {
+            & node_modules/.bin/electron-builder.cmd --dir --x64 --config.electronDist=node_modules/electron/dist --publish never
+          } else {
+            & node_modules/.bin/electron-builder.cmd --dir --x64 --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false --publish never
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Windows packaging or signing failed' }
+      - name: Verify packaged application in an isolated profile
+        shell: pwsh
+        run: |
+          $started = [DateTime]::UtcNow
+          & node_modules/.bin/electron.cmd scripts/package-smoke.cjs ../verification/build-work/packages/win-unpacked/resources/app.asar
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged application smoke failed' }
+          $report = Get-Item -LiteralPath ../verification/package-smoke.json
+          if ($report.LastWriteTimeUtc -lt $started -or (Get-Content -LiteralPath $report.FullName -Raw | ConvertFrom-Json).status -ne 'passed') {
+            throw 'Packaged application did not produce a fresh successful smoke report'
+          }
+      - name: Prepare final public ZIP and checksums after signing
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          SIGNING_CONFIGURED: ${{ secrets.CSC_LINK != '' }}
+        run: |
+          if ($env:SIGNING_CONFIGURED -eq 'true') {
+            ./scripts/prepare-windows-release.ps1 -ExpectedTag $env:RELEASE_TAG
+          } else {
+            ./scripts/prepare-windows-release.ps1 -ExpectedTag $env:RELEASE_TAG -AllowUnsigned
+          }
+      - name: Scan the same final CI artifact with VirusTotal API v3
+        shell: pwsh
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        run: |
+          $manifest = Get-Content ../verification/ci-release/release-manifest.json -Raw | ConvertFrom-Json
+          node scripts/virustotal.cjs (Join-Path ../verification/ci-release $manifest.filename)
+          if ($LASTEXITCODE -ne 0) { throw 'VirusTotal analysis is incomplete or requires review; release stopped' }
+      - name: Preserve only final public files and sanitized scan state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-public-windows
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ../verification/ci-release/KeyForge-*-windows-x64.zip
+            ../verification/ci-release/SHA256SUMS.txt
+            ../verification/ci-release/release-manifest.json
+            ../verification/ci-release/*.virustotal.json
+  publish:
+    needs: [preflight, checks, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: final-public-windows
+          path: ../verification/ci-release
+      - name: Publish exact scanned bytes and attach the completed report link
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-release.cjs

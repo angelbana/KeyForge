@@ -23,7 +23,25 @@
 
 ## Скачать готовую сборку
 
-[Скачать KeyForge для Windows x64](https://github.com/angelbana/KeyForge/releases/latest). В разделе Assets выберите файл `KeyForge-0.1.10-windows-x64.zip`, распакуйте весь архив в отдельную папку и запустите `KeyForge/KeyForge.exe`. Node.js, npm и Git для запуска не нужны; клиент OpenSSH должен быть установлен. Сборка пока без цифровой подписи. Готовые пакеты Linux/macOS пока не опубликованы.
+[Скачать KeyForge для Windows x64](https://github.com/angelbana/KeyForge/releases/latest). В разделе Assets выберите файл `KeyForge-<версия>-windows-x64.zip`, распакуйте весь архив в отдельную папку и запустите `KeyForge/KeyForge.exe`. Node.js, npm и Git для запуска не нужны; клиент OpenSSH должен быть установлен. Сборка пока без цифровой подписи. Готовые пакеты Linux/macOS пока не опубликованы.
+
+## Проверка публичных релизов в VirusTotal
+
+Workflow [Release with VirusTotal](https://github.com/angelbana/KeyForge/actions/workflows/release.yml) собирает Windows x64 из нового тега `v<версия>`, запускает проверки на Windows/Linux/macOS и публикует ZIP только после завершённого анализа. Для выпуска обновите `package.json`, lock-файл и CHANGELOG, затем отправьте новый тег на этот коммит. Уже существующие релизы и их файлы workflow не заменяет. Его также можно запустить вручную, указав новый существующий тег.
+
+Добавьте **`VT_API_KEY`** в [GitHub Actions Secrets репозитория](https://github.com/angelbana/KeyForge/settings/secrets/actions). Значение передаётся API только заголовком `x-apikey`; не добавляйте его в исходники, команды с буквальным значением или отчёты. Для подписи поддерживаются секреты `CSC_LINK` и `CSC_KEY_PASSWORD` electron-builder. Если сертификат не настроен, сборка явно помечается как неподписанная. При настроенном сертификате ошибка подписи блокирует релиз.
+
+Архив создаётся **после подписи**, непосредственно из результата CI. Его SHA256 проверяется до и после анализа и перед публикацией. Workflow не скачивает файлы из GitHub Releases для отправки в VirusTotal: между заданиями передаётся тот же артефакт CI. Сначала запрашивается существующий отчёт по SHA256; повторная загрузка не выполняется. При HTTP 404 используется multipart-загрузка (до 32 MiB напрямую, более крупный файл — через `upload_url`, предел 650 MiB). Запросы идут с интервалом не менее 16 секунд, опрос анализа — 30 секунд; HTTP 429 учитывает `Retry-After`. Общее ожидание ограничено 30 минутами, бюджет одного запуска — 500 запросов. Суточная квота Public API общая для ключа; её также могут расходовать другие проекты.
+
+Статусы «отправлен», «в очереди» и «анализ завершён» различаются. При тайм-ауте, обнаружениях malicious/suspicious или отсутствии завершённых ответов движков публикация останавливается; состояние сохраняется в артефактах CI. В описание готового релиза добавляются ссылка на отчёт именно его ZIP, результаты движков и SHA256. Завершение анализа и нулевые обнаружения не гарантируют безопасность файла. Для опубликованной до этой автоматизации версии 0.1.10 проверка VirusTotal пока не подтверждена.
+
+Для ручной проверки уже подготовленного публичного файла задайте `VT_API_KEY` в окружении и запустите из корня репозитория:
+
+```powershell
+node scripts/virustotal.cjs ../verification/releases/v0.1.10/KeyForge-0.1.10-windows-x64.zip
+```
+
+Утилита принимает только файлы с именем публичной сборки внутри `../verification/releases/` или `../verification/ci-release/`. JSON с хешем, ID анализа и состоянием сохраняется рядом с файлом, вне Git. Не помещайте в эти каталоги приватные архивы: отправлять разрешено только окончательные публичные сборки, без пользовательских профилей, ключей и секретов.
 
 ## Запуск и сборка
 
@@ -77,7 +95,7 @@ GitHub CI запускает проверки и упаковку на трёх 
 
 The passphrase encrypts a local file: a software private key or a hardware key handle. A YubiKey keeps its private key on the token; its FIDO2 PIN is separate. Show/Hide reveals the entered phrase on request, and masks it again on window blur or navigation. Save generated phrases in your password manager before submission: the field is cleared when submitted, and the phrase is not saved in settings.
 
-[Download the Windows x64 build](https://github.com/angelbana/KeyForge/releases/latest). Choose KeyForge-0.1.10-windows-x64.zip under Assets, extract the entire archive and run KeyForge/KeyForge.exe. No Node.js, npm or Git is needed to run the app; OpenSSH is required. The build is unsigned. Linux/macOS packages are not published yet.
+[Download the Windows x64 build](https://github.com/angelbana/KeyForge/releases/latest). Choose `KeyForge-<version>-windows-x64.zip` under Assets, extract the entire archive and run KeyForge/KeyForge.exe. No Node.js, npm or Git is needed to run the app; OpenSSH is required. The build is unsigned. Linux/macOS packages are not published yet.
 
 KeyForge is a local SSH key manager with Russian and English UI. It uses Electron, React, strict TypeScript and Tailwind CSS. Native OpenSSH creates encrypted software keys and FIDO2 credentials; private material never enters the renderer or clipboard.
 
@@ -106,9 +124,17 @@ OpenSSH algorithm support is separate from optional physical device discovery th
 
 Windows builds include key-generation utilities from [Microsoft OpenSSH 10.0.0.0p2 Preview](https://github.com/PowerShell/Win32-OpenSSH/releases/tag/10.0.0.0p2-Preview), with a pinned archive SHA256, verified Microsoft signatures and included licenses. The first Windows build requires internet access; cached tools stay outside the repository in `../verification/tools/`. System OpenSSH remains unchanged and handles SSH connections. PIN/touch confirmation uses the Windows Security dialog. This avoids Windows OpenSSH 9.5's unconditional resident-overwrite prompt, which can end in misleading `bad permissions` even for a new credential. KeyForge always refuses token overwrites, and resident keys use a filename-specific `ssh:keyforge:` application scope. Full hardware enrollment/signing still require the user's local PIN and touch.
 
+### Public release scanning
+
+Release maintainers: configure the `VT_API_KEY` GitHub Actions secret and push a new version tag to run **Release with VirusTotal**. The final Windows ZIP is produced after signing (when `CSC_LINK` / `CSC_KEY_PASSWORD` are configured), scanned through API v3 and published from the same CI bytes. Existing reports are reused by SHA256. Uploads use the 32 MiB / 650 MiB API routes, 429 backoff and bounded polling. Publication requires a completed report with engine verdicts and no malicious/suspicious detections. Release notes include the report URL, counts, SHA256 and explicit signing status; no safety guarantee is implied. Missing credentials or incomplete analysis stops publication. Version 0.1.10 predates this automation and has no confirmed VirusTotal scan yet. Local invocation and output locations are shown above; submit final public artifacts only.
+
 ## References
 
 - [Electron security checklist](https://www.electronjs.org/docs/latest/tutorial/security/)
 - [OpenSSH ssh-keygen options](https://man.openbsd.org/ssh-keygen.1)
 - [OpenSSH authentication methods](https://man.openbsd.org/sshd_config.5)
 - [Google Authenticator PAM documentation](https://github.com/google/google-authenticator-libpam)
+- [VirusTotal file reports](https://docs.virustotal.com/reference/file-info)
+- [VirusTotal uploads](https://docs.virustotal.com/reference/files-upload-url)
+- [VirusTotal analysis status](https://docs.virustotal.com/reference/analysis)
+- [VirusTotal Public API limits](https://docs.virustotal.com/reference/public-vs-premium-api)
