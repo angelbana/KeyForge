@@ -166,7 +166,7 @@ function createClient({
   }
   async function request(
     url,
-    { method = "GET", body, allowMissing = false } = {},
+    { method = "GET", body, allowMissing = false, refreshUrl } = {},
   ) {
     for (;;) {
       await wait(Math.max(0, lastRequest + intervalMs - now()));
@@ -203,6 +203,7 @@ function createClient({
         const delay = retryDelay(response.headers.get("retry-after"), now());
         await response.body?.cancel();
         await wait(delay);
+        if (refreshUrl) url = await refreshUrl();
         continue;
       }
       if (allowMissing && response.status === 404) {
@@ -272,16 +273,16 @@ async function scan({
         existing = await client.request(`${API}/files/${artifact.sha256}`);
       }
     } else {
-      let url = `${API}/files`;
-      if (artifact.size > SMALL_FILE)
-        url = uploadUrl(
-          (await client.request(`${API}/files/upload_url`))?.data,
-        );
+      const large = artifact.size > SMALL_FILE;
+      const freshUploadUrl = async () =>
+        uploadUrl((await client.request(`${API}/files/upload_url`))?.data);
+      const url = large ? await freshUploadUrl() : `${API}/files`;
       notify(
         "Uploading final public artifact; submission is not a completed analysis.",
       );
       const uploaded = await client.request(url, {
         method: "POST",
+        ...(large ? { refreshUrl: freshUploadUrl } : {}),
         body: async () => {
           const form = new FormData();
           form.append(

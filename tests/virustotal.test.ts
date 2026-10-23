@@ -306,6 +306,56 @@ test("VirusTotal uses upload_url for files larger than 32 MiB", async () =>
     );
     assert.equal(calls, 4);
   }));
+test("VirusTotal renews a single-use large upload URL after 429", async () =>
+  fixture(async (file, root) => {
+    await fs.truncate(file, vt.SMALL_FILE + 1);
+    const artifact = await vt.publicArtifact(file, [root]);
+    const key = randomBytes(24).toString("hex");
+    const timer = clock();
+    let issued = 0;
+    const uploads: Array<{ url: string; time: number }> = [];
+    const client = vt.createClient({
+      key,
+      ...timer,
+      fetchImpl: async (
+        url: string,
+        options: { method: string; body: FormData },
+      ) => {
+        if (url.endsWith(`/files/${artifact.sha256}`)) return json(404, {});
+        if (url.endsWith("/files/upload_url"))
+          return json(200, {
+            data: `https://www.virustotal.com/_ah/upload/attempt-${++issued}`,
+          });
+        if (options.method === "POST") {
+          uploads.push({ url, time: timer.now() });
+          if (uploads.length === 1)
+            return json(429, {}, { "Retry-After": "60" });
+          assert.ok(url.endsWith("/attempt-2"));
+          assert.equal((options.body.get("file") as File).size, artifact.size);
+          return json(200, { data: { id: "retried-large-analysis" } });
+        }
+        return json(200, {
+          data: {
+            attributes: {
+              status: "completed",
+              date: 1700000000,
+              stats: counts,
+            },
+          },
+        });
+      },
+    });
+    assert.equal(
+      (await vt.scan({ artifact, key, client, save: async () => {} })).status,
+      "completed",
+    );
+    assert.equal(issued, 2);
+    assert.equal(uploads.length, 2);
+    assert.notEqual(uploads[0].url, uploads[1].url);
+    assert.ok(uploads[1].time - uploads[0].time >= 60000);
+    assert.equal(client.requests, 6);
+  }));
+
 test("VirusTotal rate limiter spaces requests, honors 429 and stops at its budget", async () => {
   const key = randomBytes(24).toString("hex");
   const timer = clock();

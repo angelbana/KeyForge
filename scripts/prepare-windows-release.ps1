@@ -1,16 +1,16 @@
-param([Parameter(Mandatory)][string]$ExpectedTag, [switch]$AllowUnsigned)
+param([Parameter(Mandatory)][string]$ExpectedTag)
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $version = (Get-Content -LiteralPath (Join-Path $repoRoot 'package.json') -Raw | ConvertFrom-Json).version
 if ($version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$' -or $ExpectedTag -cne "v$version") { throw 'Release tag must match package.json version.' }
 $source = [IO.Path]::GetFullPath((Join-Path $repoRoot '../verification/build-work/packages/win-unpacked'))
 $output = [IO.Path]::GetFullPath((Join-Path $repoRoot '../verification/ci-release'))
-if (Test-Path -LiteralPath $output) { throw 'Release output exists; inspect it before retrying.' }
 $files = @(Get-ChildItem -LiteralPath $source -Recurse -Force -File)
 if (-not $files.Count -or (Get-ChildItem -LiteralPath $source -Recurse -Force -Attributes ReparsePoint)) { throw 'Missing application or unsafe package link.' }
 if ($files | Where-Object { $_.Name -match '^(\.env(?:\..*)?|authorized_keys|known_hosts|id_ed25519.*|id_rsa.*)$' -or $_.Extension -in @('.key', '.pem', '.pub', '.log', '.dmp') }) { throw 'Unexpected private or diagnostic file in package.' }
 $signature = (Get-AuthenticodeSignature -LiteralPath (Join-Path $source 'KeyForge.exe')).Status.ToString()
-if ($signature -ne 'Valid' -and -not ($AllowUnsigned -and $signature -eq 'NotSigned')) { throw 'Application signature is invalid or unsigned output was not explicitly allowed.' }
+if ($signature -ne 'Valid') { throw 'A valid digital signature is required before preparing a public release for VirusTotal.' }
+if (Test-Path -LiteralPath $output) { throw 'Release output exists; inspect it before retrying.' }
 $gitRoot = & git -C $repoRoot rev-parse --show-toplevel
 if ($LASTEXITCODE -ne 0 -or [IO.Path]::GetFullPath($gitRoot) -ne $repoRoot) { throw 'Unexpected repository root.' }
 $sourceCommit = & git -C $repoRoot rev-parse HEAD

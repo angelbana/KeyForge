@@ -19,7 +19,7 @@ function fixture() {
     version: "1.2.3",
     tag: "v1.2.3",
     ...artifact,
-    signature: "NotSigned",
+    signature: "Valid",
     sourceCommit: commit,
   };
   const report = {
@@ -47,6 +47,10 @@ test("release requires the completed report for exactly the final bytes and sour
   ) => validateRelease(manifest, report, f.artifact, checksums, commit);
   assert.equal(check().undetected, 7);
   assert.equal(check({ ...f.manifest, signature: "Valid" }).harmless, 1);
+  assert.throws(
+    () => check({ ...f.manifest, signature: "NotSigned" }),
+    /signature state/,
+  );
   for (const status of [
     "checking",
     "submitted",
@@ -136,7 +140,7 @@ test("release blocks detections, incomplete engine verdicts and errored complete
     "Changes",
   );
   assert.ok(text.includes(f.report.url));
-  assert.ok(text.includes("unsigned"));
+  assert.ok(text.includes("verified digital signature"));
   assert.ok(text.includes("Timeout: 2"));
   assert.ok(!text.includes("file is safe"));
 });

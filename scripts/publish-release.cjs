@@ -22,7 +22,7 @@ function validateRelease(manifest, report, artifact, checksums, commit) {
       "Final artifact differs from its release manifest or source commit.",
     );
   if (
-    !["Valid", "NotSigned"].includes(manifest.signature) ||
+    manifest.signature !== "Valid" ||
     checksums !== `${artifact.sha256}  ${artifact.filename}\n`
   )
     throw new Error("Release signature state or checksum file is invalid.");
@@ -49,7 +49,7 @@ function validateRelease(manifest, report, artifact, checksums, commit) {
   return results;
 }
 function notes(manifest, report, results, changes) {
-  return `KeyForge ${manifest.version} — Windows x64\n\nDownload **${manifest.filename}**, extract the complete ZIP and run **KeyForge/KeyForge.exe**. ${manifest.signature === "Valid" ? "The Windows application has a verified digital signature." : "This Windows build is unsigned."}\n\nVirusTotal: [отчёт для опубликованного ZIP / report for the released ZIP](${report.url}).\n\nАнализ завершён / Analysis completed. Malicious: **${results.malicious}**, suspicious: **${results.suspicious}**, undetected: **${results.undetected}**, harmless: **${results.harmless}**. Timeout: ${results.timeout + results["confirmed-timeout"]}; failure: ${results.failure}; unsupported: ${results["type-unsupported"]}.\n\nSHA256: \`${manifest.sha256}\`\n\n${changes.trim()}\n`;
+  return `KeyForge ${manifest.version} — Windows x64\n\nDownload **${manifest.filename}**, extract the complete ZIP and run **KeyForge/KeyForge.exe**. The Windows application has a verified digital signature.\n\nVirusTotal: [отчёт для опубликованного ZIP / report for the released ZIP](${report.url}).\n\nАнализ завершён / Analysis completed. Malicious: **${results.malicious}**, suspicious: **${results.suspicious}**, undetected: **${results.undetected}**, harmless: **${results.harmless}**. Timeout: ${results.timeout + results["confirmed-timeout"]}; failure: ${results.failure}; unsupported: ${results["type-unsupported"]}.\n\nSHA256: \`${manifest.sha256}\`\n\n${changes.trim()}\n`;
 }
 function validateAssets(assets, artifact, checksumHash, checksumSize) {
   for (const expected of [

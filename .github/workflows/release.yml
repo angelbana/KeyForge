@@ -25,13 +25,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Require API key, public repository and a new matching tag
+      - name: Require API key, signing configuration, public repository and a new matching tag
         env:
           VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          SIGNING_CONFIGURED: ${{ secrets.CSC_LINK != '' }}
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          node -e 'if (!process.env.VT_API_KEY?.trim()) throw new Error("Configure repository secret VT_API_KEY. Nothing was uploaded."); if (process.env.RELEASE_TAG !== "v" + require("./package.json").version) throw new Error("Tag must match package.json")'
+          node -e 'if (!process.env.VT_API_KEY?.trim()) throw new Error("Configure repository secret VT_API_KEY. Nothing was uploaded."); if (process.env.SIGNING_CONFIGURED !== "true") throw new Error("Configure code signing with CSC_LINK before releasing. Nothing was uploaded."); if (process.env.RELEASE_TAG !== "v" + require("./package.json").version) throw new Error("Tag must match package.json")'
           test "$(gh repo view "$GITHUB_REPOSITORY" --json isPrivate --jq .isPrivate)" = false
           if gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
             echo "Release already exists; use a new version. Existing release files will not be replaced."
@@ -59,17 +60,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Package final Windows application, signing when configured
+      - name: Package and sign the final Windows application
         shell: pwsh
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: |
-          if ($env:CSC_LINK) {
-            & node_modules/.bin/electron-builder.cmd --dir --x64 --config.electronDist=node_modules/electron/dist --publish never
-          } else {
-            & node_modules/.bin/electron-builder.cmd --dir --x64 --config.electronDist=node_modules/electron/dist --config.win.signAndEditExecutable=false --publish never
-          }
+          if (-not $env:CSC_LINK) { throw 'Code-signing configuration is required; unsigned fallback is disabled' }
+          & node_modules/.bin/electron-builder.cmd --dir --x64 --config.electronDist=node_modules/electron/dist --config.forceCodeSigning=true --publish never
           if ($LASTEXITCODE -ne 0) { throw 'Windows packaging or signing failed' }
       - name: Verify packaged application in an isolated profile
         shell: pwsh
@@ -85,13 +83,8 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-          SIGNING_CONFIGURED: ${{ secrets.CSC_LINK != '' }}
         run: |
-          if ($env:SIGNING_CONFIGURED -eq 'true') {
-            ./scripts/prepare-windows-release.ps1 -ExpectedTag $env:RELEASE_TAG
-          } else {
-            ./scripts/prepare-windows-release.ps1 -ExpectedTag $env:RELEASE_TAG -AllowUnsigned
-          }
+          ./scripts/prepare-windows-release.ps1 -ExpectedTag $env:RELEASE_TAG
       - name: Scan the same final CI artifact with VirusTotal API v3
         shell: pwsh
         env:
